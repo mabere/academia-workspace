@@ -1,0 +1,218 @@
+@import 'tailwindcss';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.workspace-shell {
+    --sidebar-width: 16rem;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    grid-template-rows: auto minmax(calc(100vh - 4.5rem), 1fr) auto;
+    min-height: 100vh;
+    transition: grid-template-columns 180ms ease;
+}
+
+.guest-shell {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+.workspace-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+}
+
+.workspace-sidebar {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: 4.5rem;
+    height: calc(100vh - 4.5rem);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.workspace-main {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    padding-bottom: 6rem;
+}
+
+.workspace-footer {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: var(--sidebar-width);
+    width: auto;
+}
+
+/* Keep text controls comfortably sized across all module forms. */
+input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+select,
+textarea {
+    box-sizing: border-box;
+    width: 100%;
+    border-width: 1px;
+    padding: .625rem .75rem;
+    line-height: 1.5;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+select {
+    min-height: 2.75rem;
+}
+
+textarea {
+    min-height: 7rem;
+    resize: vertical;
+}
+
+.guest-shell .workspace-main,
+.guest-shell .workspace-footer {
+    grid-column: 1 / -1;
+}
+
+.guest-shell .workspace-footer {
+    left: 0;
+}
+
+.sidebar-link {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: .75rem;
+    border-radius: .625rem;
+    padding: .625rem .75rem;
+    color: #334155;
+    font-size: .875rem;
+    font-weight: 500;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sidebar-link:hover {
+    background: #f1f5f9;
+    color: #0f766e;
+}
+
+.sidebar-link-active {
+    background: #f0fdfa;
+    color: #115e59;
+    font-weight: 650;
+}
+
+.sidebar-backdrop {
+    display: none;
+}
+
+.sidebar-toggle-mobile {
+    display: none;
+}
+
+body.sidebar-collapsed .workspace-shell {
+    --sidebar-width: 5rem;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+body.sidebar-collapsed .workspace-sidebar [data-sidebar-label] {
+    display: none;
+}
+
+body.sidebar-collapsed .sidebar-link {
+    justify-content: center;
+    padding-inline: .5rem;
+}
+
+@media (max-width: 767px) {
+    .workspace-shell {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .workspace-header {
+        position: sticky;
+        top: 0;
+    }
+
+    .sidebar-toggle-mobile {
+        display: inline-flex;
+    }
+
+    .sidebar-toggle-desktop {
+        display: none;
+    }
+
+    .workspace-sidebar {
+        position: fixed;
+        z-index: 50;
+        top: 4.5rem;
+        bottom: 0;
+        left: 0;
+        width: min(18rem, 85vw);
+        height: auto;
+        transform: translateX(-105%);
+        transition: transform 180ms ease;
+        box-shadow: 0 12px 24px rgb(15 23 42 / 12%);
+    }
+
+    body.sidebar-open .workspace-sidebar {
+        transform: translateX(0);
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        z-index: 40;
+        inset: 4.5rem 0 0;
+        display: block;
+        border: 0;
+        background: rgb(15 23 42 / 35%);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+    }
+
+    body.sidebar-open .sidebar-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    body.sidebar-collapsed .workspace-sidebar [data-sidebar-label] {
+        display: initial;
+    }
+
+    body.sidebar-collapsed .sidebar-link {
+        justify-content: flex-start;
+        padding-inline: .75rem;
+    }
+
+    .workspace-main,
+    .workspace-footer {
+        width: 100%;
+    }
+
+    .workspace-footer {
+        left: 0;
+    }
+
+    .workspace-main {
+        padding-bottom: 7rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .workspace-shell,
+    .sidebar-link,
+    .workspace-sidebar,
+    .sidebar-backdrop {
+        transition: none;
+    }
+}

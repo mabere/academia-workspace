@@ -1,0 +1,10 @@
+@extends('layouts.hub')
+@section('title', 'Proyek — ELT Academic Hub')
+@section('content')
+<div class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-sm font-medium text-teal-800">Ruang kerja Tri Dharma</p><h1 class="mt-1 text-3xl font-bold">Proyek yang saya kelola</h1><p class="mt-2 text-slate-600">Proyek aktif milik Anda atau yang memberi Anda akses editor.</p></div><a href="{{ route('projects.create') }}" class="rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-700">Buat proyek</a></div>
+@if($projects->isEmpty())
+    <section class="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><h2 class="font-semibold">Belum ada proyek aktif</h2><p class="mt-2 text-sm text-slate-600">Buat proyek untuk mulai mengelola aktivitas Tri Dharma.</p><a href="{{ route('projects.create') }}" class="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Buat proyek</a></section>
+@else
+    <div class="mt-6 grid gap-4 md:grid-cols-2">@foreach($projects as $project)<a href="{{ route('projects.show', $project) }}" class="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-teal-500"><div class="flex justify-between gap-3"><h2 class="text-lg font-bold">{{ $project->name }}</h2><span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{{ $project->owner_id === auth()->id() ? 'Pemilik' : 'Editor' }}</span></div><p class="mt-2 text-sm text-slate-600">Pemilik: {{ $project->owner->name }}</p><p class="mt-2 text-sm text-slate-600">{{ $project->description ?: 'Belum ada deskripsi.' }}</p><div class="mt-4 flex flex-wrap items-center gap-2">@foreach($project->pillars as $pillar)<span class="rounded-full bg-slate-100 px-3 py-1 text-xs">{{ ['teaching'=>'Pengajaran','research'=>'Penelitian','community'=>'Pengabdian'][$pillar] ?? $pillar }}</span>@endforeach<span class="ml-auto text-xs text-slate-500">{{ $project->assignments_count }} tugas</span></div></a>@endforeach</div>{{ $projects->links() }}
+@endif
+@endsection
