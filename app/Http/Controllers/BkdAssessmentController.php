@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\AcademicPeriod;
 use App\Models\BkdAssessment;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\Bkd\BkdCalculator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class BkdAssessmentController extends Controller
 {
@@ -17,31 +21,7 @@ class BkdAssessmentController extends Controller
         $user = $request->user();
         abort_unless($user->isStaff(), 403);
 
-        // Ambil proyek pengguna pada periode ini
-        $projectIds = Project::query()->where('academic_period_id', $period->id)
-            ->where(fn ($q) => $q->where('owner_id', $user->id)
-                ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->where('project_members.role', 'editor')))
-            ->pluck('id');
-
-        // Hitung total SKS terkini
-        $items = collect();
-        foreach (Project::query()->whereIn('id', $projectIds)->with(['literatureSources', 'instrumentBlueprints', 'guruBahasaMaterials', 'assignments.feedbackReports'])->get() as $project) {
-            foreach ($project->literatureSources as $source) {
-                $items->push(['type' => 'literature_source', 'pillar' => 'research', 'sks' => $calculator->calculateItemSks('literature_source', $source->status)]);
-            }
-            foreach ($project->instrumentBlueprints as $blueprint) {
-                $items->push(['type' => 'instrument_blueprint', 'pillar' => 'research', 'sks' => $calculator->calculateItemSks('instrument_blueprint', $blueprint->status)]);
-            }
-            foreach ($project->guruBahasaMaterials as $material) {
-                $items->push(['type' => 'gurubahasa_material', 'pillar' => 'community', 'sks' => $calculator->calculateItemSks('gurubahasa_material', $material->status)]);
-            }
-            foreach ($project->assignments as $assignment) {
-                if ($assignment->status === 'published') {
-                    $items->push(['type' => 'writewise_assignment', 'pillar' => 'teaching', 'sks' => $calculator->calculateItemSks('writewise_assignment', $assignment->status)]);
-                }
-            }
-        }
-
+        $items = $this->collectEvidenceItems($user, $period, $calculator);
         $summary = $calculator->calculateSummary($items, $user->lecturerProfile);
 
         DB::transaction(function () use ($period, $user, $summary) {
@@ -101,5 +81,110 @@ class BkdAssessmentController extends Controller
         });
 
         return back()->with('status', 'Penilaian asesor BKD berhasil disimpan dengan hasil: '.$assessment->verdictLabel().'.');
+    }
+
+    public function export(Request $request, AcademicPeriod $period, BkdCalculator $calculator): View
+    {
+        $user = $request->user();
+        abort_unless($user->isStaff(), 403);
+
+        $lecturerId = ($user->role === 'admin' && $request->filled('lecturer_id'))
+            ? (int) $request->input('lecturer_id')
+            : $user->id;
+
+        $targetLecturer = ($lecturerId === $user->id)
+            ? $user
+            : User::query()->where('id', $lecturerId)->whereIn('role', ['lecturer', 'admin', 'superadmin'])->firstOrFail();
+
+        $targetLecturer->loadMissing(['lecturerProfile.studyProgram.faculty']);
+
+        $evidenceItems = $this->collectEvidenceItems($targetLecturer, $period, $calculator);
+        $summary = $calculator->calculateSummary($evidenceItems, $targetLecturer->lecturerProfile);
+
+        $assessment = BkdAssessment::query()
+            ->where('academic_period_id', $period->id)
+            ->where('lecturer_id', $targetLecturer->id)
+            ->with('assessor')
+            ->first();
+
+        return view('bkd.export', [
+            'period' => $period,
+            'lecturer' => $targetLecturer,
+            'profile' => $targetLecturer->lecturerProfile,
+            'evidenceItems' => $evidenceItems,
+            'summary' => $summary,
+            'assessment' => $assessment,
+        ]);
+    }
+
+    /**
+     * @return Collection<int, array{type: string, type_label: string, title: string, project_name: string, pillar: string, status: string, sks: float, date: Carbon|null}>
+     */
+    private function collectEvidenceItems(User $lecturer, AcademicPeriod $period, BkdCalculator $calculator): Collection
+    {
+        $projectIds = Project::query()->where('academic_period_id', $period->id)
+            ->where(fn ($q) => $q->where('owner_id', $lecturer->id)
+                ->orWhereHas('members', fn ($m) => $m->where('users.id', $lecturer->id)->where('project_members.role', 'editor')))
+            ->pluck('id');
+
+        $items = collect();
+        $projects = Project::query()->whereIn('id', $projectIds)
+            ->with(['literatureSources', 'instrumentBlueprints', 'guruBahasaMaterials', 'assignments'])
+            ->get();
+
+        foreach ($projects as $project) {
+            foreach ($project->literatureSources as $source) {
+                $items->push([
+                    'type' => 'literature_source',
+                    'type_label' => 'Sumber Literatur (LitSynth)',
+                    'title' => $source->title ?: $source->original_name,
+                    'project_name' => $project->name,
+                    'pillar' => 'research',
+                    'status' => $source->status,
+                    'sks' => $calculator->calculateItemSks('literature_source', $source->status),
+                    'date' => $source->updated_at,
+                ]);
+            }
+            foreach ($project->instrumentBlueprints as $blueprint) {
+                $items->push([
+                    'type' => 'instrument_blueprint',
+                    'type_label' => 'Blueprint Instrumen Penelitian',
+                    'title' => $blueprint->title.' (v'.$blueprint->current_version.')',
+                    'project_name' => $project->name,
+                    'pillar' => 'research',
+                    'status' => $blueprint->status,
+                    'sks' => $calculator->calculateItemSks('instrument_blueprint', $blueprint->status),
+                    'date' => $blueprint->updated_at,
+                ]);
+            }
+            foreach ($project->guruBahasaMaterials as $material) {
+                $items->push([
+                    'type' => 'gurubahasa_material',
+                    'type_label' => 'Materi Pengabdian GuruBahasa',
+                    'title' => $material->title,
+                    'project_name' => $project->name,
+                    'pillar' => 'community',
+                    'status' => $material->status,
+                    'sks' => $calculator->calculateItemSks('gurubahasa_material', $material->status),
+                    'date' => $material->updated_at,
+                ]);
+            }
+            foreach ($project->assignments as $assignment) {
+                if ($assignment->status === 'published') {
+                    $items->push([
+                        'type' => 'writewise_assignment',
+                        'type_label' => 'Tugas Pembelajaran WriteWise',
+                        'title' => $assignment->title,
+                        'project_name' => $project->name,
+                        'pillar' => 'teaching',
+                        'status' => $assignment->status,
+                        'sks' => $calculator->calculateItemSks('writewise_assignment', $assignment->status),
+                        'date' => $assignment->updated_at,
+                    ]);
+                }
+            }
+        }
+
+        return $items;
     }
 }

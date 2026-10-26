@@ -49,6 +49,7 @@ class User extends Authenticatable
         ];
     }
 
+    /** @return HasOne<LecturerProfile, $this> */
     public function lecturerProfile(): HasOne
     {
         return $this->hasOne(LecturerProfile::class);

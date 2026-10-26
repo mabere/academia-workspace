@@ -3,7 +3,6 @@ includes:
     - vendor/nesbot/carbon/extension.neon
 
 parameters:
-    memoryLimit: 768M
     paths:
         - app/
         - bootstrap/app.php

@@ -29,6 +29,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::post('/bkd/periods/{period}/submit', [BkdAssessmentController::class, 'submit'])->name('bkd.submit');
     Route::post('/bkd/assessments/{assessment}/evaluate', [BkdAssessmentController::class, 'evaluate'])->name('bkd.evaluate');
+    Route::get('/bkd/periods/{period}/export', [BkdAssessmentController::class, 'export'])->name('bkd.export');
     Route::get('/outputs', [OutputEvidenceController::class, 'index'])->name('outputs.index');
     Route::get('/corpuslab/reviews', [CorpusLabController::class, 'reviewQueue'])->name('corpuslab.reviews');
     Route::get('/outputs/{type}/{id}/download', [OutputEvidenceController::class, 'download'])->whereIn('type', ['literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.download');
