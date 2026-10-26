@@ -3,9 +3,29 @@
 @section('content')
 <a href="{{ route('litsynth.index', $project) }}" class="text-sm font-medium text-teal-800 hover:underline">← Kembali ke LitSynth</a>
 <div class="mt-3 flex flex-wrap items-start justify-between gap-4"><div><p class="text-sm font-medium text-teal-800">Sumber literatur · {{ $project->name }}</p><h1 class="mt-1 break-words text-2xl font-bold">{{ $source->title ?: $source->original_name }}</h1><p class="mt-2 text-sm text-slate-600">{{ $source->original_name }} · {{ number_format($source->file_size / 1024, 0) }} KB · {{ $source->pages->count() }} halaman diekstrak</p></div><a href="{{ route('litsynth.sources.download', [$project, $source]) }}" class="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Unduh PDF privat</a></div>
-@if($source->extraction_message)<div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>Ekstraksi otomatis belum tersedia.</strong> {{ $source->extraction_message }} Upload tetap aman tersimpan. Lengkapi metadata dan matriks secara manual.</div>@endif
+@if($source->status === 'processing')
+<div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+    <div class="flex items-center gap-2">
+        <svg class="h-5 w-5 animate-spin text-sky-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+        <span><strong>Ekstraksi teks sedang diproses di antrean latar belakang.</strong> Muat ulang halaman beberapa saat lagi untuk meninjau hasil halaman.</span>
+    </div>
+    <a href="{{ url()->current() }}" class="rounded-lg bg-sky-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">Muat Ulang</a>
+</div>
+@elseif($source->extraction_message)
+<div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div><strong>Ekstraksi otomatis belum tersedia.</strong> {{ $source->extraction_message }} Upload tetap aman tersimpan. Lengkapi metadata dan matriks secara manual.</div>
+        @if($project->archived_at === null)
+        <form method="post" action="{{ route('litsynth.sources.extract', [$project, $source]) }}">
+            @csrf
+            <button class="rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Jalankan Ulang Ekstraksi</button>
+        </form>
+        @endif
+    </div>
+</div>
+@endif
 <div class="mt-7 grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,.9fr)]">
-<section><div class="mb-3"><h2 class="text-xl font-bold">Teks hasil ekstraksi</h2><p class="mt-1 text-sm text-slate-600">Hanya teks digital PDF. Pastikan setiap kutipan dan ringkasan sesuai dokumen.</p></div>@if($source->pages->isEmpty())<div class="rounded-xl border border-dashed bg-white p-6 text-sm text-slate-600">Belum ada teks halaman. Setelah pdftotext tersedia, unggah ulang dokumen untuk ekstraksi otomatis; untuk saat ini gunakan PDF privat sebagai referensi manual.</div>@else<div class="space-y-3">@foreach($source->pages as $page)<details class="rounded-xl border bg-white" @if($loop->first) open @endif><summary class="cursor-pointer px-4 py-3 font-semibold">Halaman {{ $page->page_number }}</summary><pre class="max-h-[32rem] overflow-auto border-t bg-slate-50 p-4 font-sans text-sm whitespace-pre-wrap">{{ $page->extracted_text }}</pre></details>@endforeach</div>@endif</section>
+<section><div class="mb-3"><h2 class="text-xl font-bold">Teks hasil ekstraksi</h2><p class="mt-1 text-sm text-slate-600">Hanya teks digital PDF. Pastikan setiap kutipan dan ringkasan sesuai dokumen.</p></div>@if($source->status === 'processing')<div class="rounded-xl border border-dashed bg-white p-6 text-sm text-slate-600">Dokumen sedang diekstrak oleh worker antrean. Teks per halaman akan muncul di sini setelah proses selesai.</div>@elseif($source->pages->isEmpty())<div class="rounded-xl border border-dashed bg-white p-6 text-sm text-slate-600">Belum ada teks halaman. Setelah pdftotext tersedia, jalankan ulang ekstraksi otomatis; untuk saat ini gunakan PDF privat sebagai referensi manual.</div>@else<div class="space-y-3">@foreach($source->pages as $page)<details class="rounded-xl border bg-white" @if($loop->first) open @endif><summary class="cursor-pointer px-4 py-3 font-semibold">Halaman {{ $page->page_number }}</summary><pre class="max-h-[32rem] overflow-auto border-t bg-slate-50 p-4 font-sans text-sm whitespace-pre-wrap">{{ $page->extracted_text }}</pre></details>@endforeach</div>@endif</section>
 <section><div class="mb-3"><h2 class="text-xl font-bold">Metadata dan matriks</h2><p class="mt-1 text-sm text-slate-600">Catat temuan dan nomor halaman bukti agar dapat ditelusuri.</p></div>
 <form method="post" action="{{ route('litsynth.sources.update', [$project, $source]) }}" class="space-y-4 rounded-2xl border bg-white p-5">@csrf @method('PUT')
 <label class="block text-sm font-medium">Judul<input name="title" required maxlength="500" value="{{ old('title', $source->title) }}" class="mt-1 w-full rounded-lg border-slate-300">@error('title')<span class="text-red-700">{{ $message }}</span>@enderror</label>

@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects/{project}/litsynth/sources/{source}', [LitSynthController::class, 'showSource'])->name('litsynth.sources.show');
     Route::put('/projects/{project}/litsynth/sources/{source}', [LitSynthController::class, 'updateSource'])->name('litsynth.sources.update');
     Route::post('/projects/{project}/litsynth/sources/{source}/verify', [LitSynthController::class, 'verifySource'])->name('litsynth.sources.verify');
+    Route::post('/projects/{project}/litsynth/sources/{source}/extract', [LitSynthController::class, 'extractSource'])->name('litsynth.sources.extract');
     Route::get('/projects/{project}/litsynth/sources/{source}/download', [LitSynthController::class, 'downloadSource'])->name('litsynth.sources.download');
     Route::delete('/projects/{project}/litsynth/sources/{source}', [LitSynthController::class, 'destroySource'])->name('litsynth.sources.destroy');
     Route::post('/projects/{project}/litsynth/blueprints', [LitSynthController::class, 'storeBlueprint'])->name('litsynth.blueprints.store');

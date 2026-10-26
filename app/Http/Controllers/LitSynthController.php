@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreLiteratureSourceRequest;
+use App\Jobs\ExtractPdfTextJob;
 use App\Models\InstrumentBlueprint;
 use App\Models\LiteratureSource;
 use App\Models\Project;
 use App\Services\LitSynth\InstrumentVersionManager;
-use App\Services\LitSynth\PdfTextExtractor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,13 +41,11 @@ class LitSynthController extends Controller
         return view('litsynth.index', compact('project', 'sources', 'allSources', 'blueprints', 'query'));
     }
 
-    public function storeSource(Request $request, Project $project, PdfTextExtractor $extractor): RedirectResponse
+    public function storeSource(StoreLiteratureSourceRequest $request, Project $project): RedirectResponse
     {
-        $this->authorizeProject($project, true);
-        $data = $request->validate([
-            'pdf' => ['required', 'file', 'mimes:pdf', 'max:'.config('litsynth.max_pdf_kilobytes', 25600)],
-            'title' => ['nullable', 'string', 'max:500'],
-        ]);
+        abort_if($project->archived_at !== null, 409, 'Proyek yang diarsipkan hanya dapat dibaca.');
+
+        $data = $request->validated();
         $file = $data['pdf'];
         $handle = fopen($file->getRealPath(), 'rb');
         $signature = $handle ? fread($handle, 5) : '';
@@ -80,6 +79,7 @@ class LitSynthController extends Controller
                     'title' => $data['title'] ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
                     'status' => 'processing',
                 ]);
+                $source->matrix()->create([]);
                 DB::table('audit_logs')->insert([
                     'actor_id' => $request->user()->id, 'project_id' => $project->id,
                     'action' => 'litsynth.source_uploaded', 'target_type' => 'literature_source', 'target_id' => $source->id,
@@ -93,26 +93,25 @@ class LitSynthController extends Controller
             throw $exception;
         }
 
-        try {
-            $pages = $extractor->extractPages(Storage::disk('local')->path($storedPath));
-            DB::transaction(function () use ($source, $pages) {
-                foreach ($pages as $index => $text) {
-                    $source->pages()->create(['page_number' => $index + 1, 'extracted_text' => $text]);
-                }
-                $source->matrix()->create([]);
-                $source->update(['status' => 'needs_review', 'extraction_message' => null]);
-            });
-            $message = 'PDF disimpan privat dan teks berhasil diekstrak. Periksa hasil ekstraksi sebelum memverifikasi matriks.';
-        } catch (Throwable $exception) {
-            $source->matrix()->create([]);
-            $source->update([
-                'status' => 'extraction_unavailable',
-                'extraction_message' => mb_substr($exception->getMessage(), 0, 1000),
-            ]);
-            $message = 'PDF tersimpan privat, tetapi ekstraksi otomatis belum tersedia. Lengkapi matriks secara manual atau pasang pdftotext lokal.';
-        }
+        ExtractPdfTextJob::dispatch($source->id);
 
-        return redirect()->route('litsynth.sources.show', [$project, $source])->with('status', $message);
+        return redirect()->route('litsynth.sources.show', [$project, $source])
+            ->with('status', 'PDF berhasil diunggah secara privat. Proses ekstraksi teks sedang diproses di antrean latar belakang.');
+    }
+
+    public function extractSource(Project $project, LiteratureSource $source): RedirectResponse
+    {
+        $this->authorizeSource($project, $source, true);
+        abort_if($project->archived_at !== null, 409, 'Proyek diarsipkan.');
+
+        $source->update([
+            'status' => 'processing',
+            'extraction_message' => null,
+        ]);
+
+        ExtractPdfTextJob::dispatch($source->id);
+
+        return back()->with('status', 'Ekstraksi teks dijadwalkan ulang pada antrean latar belakang.');
     }
 
     public function showSource(Project $project, LiteratureSource $source): View
