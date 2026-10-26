@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\AiUnavailableException;
+use App\Http\Requests\StoreWritingAssignmentRequest;
+use App\Http\Requests\UpdateWritingAssignmentRequest;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\WritingAssignment;
@@ -14,30 +16,16 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class WritingAssignmentController extends Controller
 {
-    public function store(Request $request, Project $project): RedirectResponse
+    public function store(StoreWritingAssignmentRequest $request, Project $project): RedirectResponse
     {
-        abort_unless(Auth::user()->isStaff() && ($project->isOwnedBy(Auth::user()) || $project->hasEditor(Auth::user())), 403);
         abort_if($project->archived_at !== null, 409, 'Tugas baru tidak dapat dibuat pada proyek yang diarsipkan.');
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'instructions' => ['required', 'string', 'max:10000'],
-            'feedback_language' => ['required', 'in:id,en'],
-            'feedback_level' => ['required', 'in:indirect,direct,socratic'],
-            'status' => ['required', 'in:draft,published'],
-            'student_emails' => ['nullable', 'string', 'max:5000'],
-            'due_at' => ['nullable', 'date'],
-            'rubric_name' => ['sometimes', 'required', 'string', 'max:120'],
-            'scale_min' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
-            'scale_max' => ['sometimes', 'required', 'integer', 'gt:scale_min', 'max:100'],
-            'criteria' => ['sometimes', 'required', 'array', 'min:1', 'max:12'],
-            'criteria.*.name' => ['required_with:criteria', 'string', 'max:120'],
-            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
-            'criteria.*.weight' => ['required_with:criteria', 'numeric', 'gt:0', 'max:100'],
-        ]);
+
+        $data = $request->validated();
         $studentIds = $this->resolveStudentIds($data['student_emails'] ?? '');
         if ($studentIds === null) {
             return back()->withErrors(['student_emails' => 'Pastikan semua email sudah terdaftar sebagai akun mahasiswa.'])->withInput();
@@ -65,28 +53,12 @@ class WritingAssignmentController extends Controller
         return redirect()->route('assignments.show', $assignment)->with('status', 'Tugas berhasil dibuat.');
     }
 
-    public function update(Request $request, WritingAssignment $assignment): RedirectResponse
+    public function update(UpdateWritingAssignmentRequest $request, WritingAssignment $assignment): RedirectResponse
     {
-        abort_unless($this->canManage($assignment), 403);
         abort_if($assignment->project->archived_at !== null, 409, 'Tugas dalam proyek arsip tidak dapat diubah.');
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'instructions' => ['required', 'string', 'max:10000'],
-            'feedback_language' => ['required', 'in:id,en'],
-            'feedback_level' => ['required', 'in:indirect,direct,socratic'],
-            'status' => ['required', 'in:draft,published'],
-            'student_emails' => ['nullable', 'string', 'max:5000'],
-            'due_at' => ['nullable', 'date'],
-            'rubric_name' => ['required', 'string', 'max:120'],
-            'scale_min' => ['required', 'integer', 'min:0', 'max:100'],
-            'scale_max' => ['required', 'integer', 'gt:scale_min', 'max:100'],
-            'criteria' => ['required', 'array', 'min:1', 'max:12'],
-            'criteria.*.name' => ['required', 'string', 'max:120'],
-            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
-            'criteria.*.weight' => ['required', 'numeric', 'gt:0', 'max:100'],
-        ]);
-        $studentIds = $this->resolveStudentIds($data['student_emails']);
+        $data = $request->validated();
+        $studentIds = $this->resolveStudentIds($data['student_emails'] ?? '');
         if ($studentIds === null) {
             return back()->withErrors(['student_emails' => 'Pastikan semua email sudah terdaftar sebagai akun mahasiswa.'])->withInput();
         }
@@ -130,7 +102,8 @@ class WritingAssignmentController extends Controller
 
     public function show(WritingAssignment $assignment, AiGateway $gateway): View
     {
-        $this->authorizeView($assignment);
+        Gate::authorize('view', $assignment);
+
         $assignment->load(['project', 'students', 'versions' => fn ($query) => $query->orderByDesc('version'), 'rubric' => fn ($query) => $query->orderByDesc('version')]);
         $submissions = $assignment->submissions()->with(['student', 'revisions.feedbackReports', 'revisions.assignmentVersion', 'revisions.rubricVersion']);
         if (Auth::user()->role === 'student') {
@@ -146,8 +119,9 @@ class WritingAssignmentController extends Controller
 
     public function submit(Request $request, WritingAssignment $assignment): RedirectResponse
     {
-        abort_unless(Auth::user()->role === 'student' && $assignment->status === 'published' && $assignment->students()->whereKey(Auth::id())->exists(), 403);
+        Gate::authorize('submitRevision', $assignment);
         abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
+
         $data = $request->validate(['body_text' => ['required', 'string', 'min:20', 'max:50000']]);
         DB::transaction(function () use ($assignment, $data) {
             $assignmentVersionId = $assignment->versions()->orderByDesc('version')->value('id');
@@ -171,8 +145,9 @@ class WritingAssignmentController extends Controller
 
     public function editFeedback(Request $request, WritingFeedbackReport $report): RedirectResponse
     {
-        abort_unless($this->canManage($report->revision->submission->assignment), 403);
+        Gate::authorize('manage', $report->revision->submission->assignment);
         abort_unless($report->status === 'draft', 409);
+
         $data = $request->validate(['feedback_json' => ['required', 'array'], 'feedback_json.overall_summary' => ['required', 'string', 'max:5000']]);
         $report->update(['feedback_json' => $data['feedback_json'], 'edited_by' => Auth::id()]);
 
@@ -181,8 +156,9 @@ class WritingAssignmentController extends Controller
 
     public function createFeedback(Request $request, WritingRevision $revision): RedirectResponse
     {
-        abort_unless($this->canManage($revision->submission->assignment), 403);
+        Gate::authorize('manage', $revision->submission->assignment);
         abort_unless(! $revision->feedbackReports()->where('status', 'draft')->exists(), 409, 'Draf feedback sudah tersedia; edit draf yang ada.');
+
         $data = $request->validate(['overall_summary' => ['required', 'string', 'max:5000']]);
         $report = $revision->feedbackReports()->create([
             'edited_by' => Auth::id(),
@@ -197,8 +173,9 @@ class WritingAssignmentController extends Controller
 
     public function publishFeedback(WritingFeedbackReport $report): RedirectResponse
     {
-        abort_unless($this->canManage($report->revision->submission->assignment), 403);
+        Gate::authorize('manage', $report->revision->submission->assignment);
         abort_unless($report->status === 'draft', 409);
+
         $report->update(['status' => 'published', 'edited_by' => Auth::id(), 'published_at' => now()]);
 
         return back()->with('status', 'Umpan balik diterbitkan untuk mahasiswa.');
@@ -206,7 +183,7 @@ class WritingAssignmentController extends Controller
 
     public function generateFeedback(WritingRevision $revision, AiGateway $gateway): RedirectResponse
     {
-        abort_unless($this->canManage($revision->submission->assignment), 403);
+        Gate::authorize('manage', $revision->submission->assignment);
 
         if ($revision->feedbackReports()->where('status', 'draft')->exists()) {
             abort(409, 'Draf feedback sudah tersedia; edit draf yang ada.');
@@ -238,18 +215,6 @@ class WritingAssignmentController extends Controller
         ]);
 
         return back()->with('status', 'Draf feedback AI dibuat untuk ditinjau dosen sebelum diterbitkan.');
-    }
-
-    private function authorizeView(WritingAssignment $assignment): void
-    {
-        $user = Auth::user();
-        $allowed = $this->canManage($assignment) || ($user->role === 'student' && $assignment->status === 'published' && $assignment->students()->whereKey($user->id)->exists());
-        abort_unless($allowed, 403);
-    }
-
-    private function canManage(WritingAssignment $assignment): bool
-    {
-        return Auth::user()->isStaff() && ($assignment->project->owner_id === Auth::id() || $assignment->project->members()->whereKey(Auth::id())->wherePivot('role', 'editor')->exists());
     }
 
     /** @return array<string, mixed> */
