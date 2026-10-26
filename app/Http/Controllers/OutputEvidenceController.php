@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicPeriod;
 use App\Models\Corpus;
 use App\Models\GuruBahasaMaterial;
 use App\Models\InstrumentBlueprint;
@@ -10,6 +11,7 @@ use App\Models\LiteratureSource;
 use App\Models\Project;
 use App\Models\WritingAssignment;
 use App\Models\WritingFeedbackReport;
+use App\Services\Bkd\BkdCalculator;
 use App\Services\LitSynth\ContentValidityCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -36,29 +38,35 @@ class OutputEvidenceController extends Controller
         'curated' => 'Terkurasi', 'published' => 'Terbit', 'approved' => 'Disetujui',
     ];
 
-    public function index(Request $request): View
+    public function index(Request $request, BkdCalculator $bkdCalculator): View
     {
         $this->authorizeStaff();
-        $projects = $this->accessibleProjects();
-        $projectIds = $projects->pluck('id');
+        $academicPeriods = AcademicPeriod::orderByDesc('start_date')->get();
+
         $data = $request->validate([
+            'academic_period_id' => ['nullable', 'integer'],
             'project_id' => ['nullable', 'integer'],
             'type' => ['nullable', 'in:literature_source,instrument_blueprint,expert_validation,gurubahasa_material,writewise_assignment,writewise_feedback,corpuslab_protocol'],
             'status' => ['nullable', 'in:uploaded,needs_review,extraction_unavailable,verified,draft,reviewed,expert_review,curated,published,approved'],
             'q' => ['nullable', 'string', 'max:120'],
         ]);
+
+        $selectedPeriodId = ! empty($data['academic_period_id']) ? (int) $data['academic_period_id'] : null;
+        $scopedProjects = $this->accessibleProjects($selectedPeriodId);
+        $projectIds = $scopedProjects->pluck('id');
+
         if (! empty($data['project_id']) && ! $projectIds->contains((int) $data['project_id'])) {
             abort(404);
         }
         $scopeIds = ! empty($data['project_id']) ? collect([(int) $data['project_id']]) : $projectIds;
-        $projectNames = $projects->pluck('name', 'id');
+        $projectNames = $scopedProjects->pluck('name', 'id');
         $items = collect();
 
         if ($this->includeType($data, 'literature_source')) {
             $items = $items->concat(LiteratureSource::query()->whereIn('project_id', $scopeIds)->with('matrix')->latest()->get()->map(fn ($record) => $this->row(
                 'literature_source', $record->id, $record->project_id, $projectNames, $record->title ?: $record->original_name,
                 trim(($record->authors ?: 'Penulis belum dicatat').($record->publication_year ? ' · '.$record->publication_year : '').' · '.number_format($record->file_size / 1024, 0).' KB'),
-                $record->status, $record->updated_at
+                $record->status, $record->updated_at, $bkdCalculator
             )));
         }
 
@@ -68,7 +76,8 @@ class OutputEvidenceController extends Controller
                 $record->title.' · versi '.$record->current_version,
                 $record->purpose,
                 $record->status,
-                $record->updated_at
+                $record->updated_at,
+                $bkdCalculator
             )));
         }
 
@@ -83,7 +92,8 @@ class OutputEvidenceController extends Controller
                 $record->title.' · versi '.$record->version_number,
                 $record->response_count.' respons pakar · '.$record->blueprint->title,
                 'expert_review',
-                $record->created_at
+                $record->created_at,
+                $bkdCalculator
             )));
         }
 
@@ -93,7 +103,8 @@ class OutputEvidenceController extends Controller
                 $record->title,
                 $record->topic.' · target CEFR '.$record->cefr_level.' (perkiraan)',
                 $record->status,
-                $record->updated_at
+                $record->updated_at,
+                $bkdCalculator
             )));
         }
 
@@ -103,7 +114,8 @@ class OutputEvidenceController extends Controller
                 $record->title,
                 'Tugas WriteWise terbit · '.$record->feedback_language,
                 $record->status,
-                $record->updated_at
+                $record->updated_at,
+                $bkdCalculator
             )));
         }
 
@@ -117,7 +129,8 @@ class OutputEvidenceController extends Controller
                 $record->revision->submission->assignment->title.' · revisi '.$record->revision->revision_number,
                 'Feedback dosen terbit · '.$record->published_at?->format('d M Y'),
                 $record->status,
-                $record->published_at ?? $record->updated_at
+                $record->published_at ?? $record->updated_at,
+                $bkdCalculator
             )));
         }
 
@@ -126,12 +139,12 @@ class OutputEvidenceController extends Controller
                 ->whereDate('retention_until', '>=', today())->latest()->get()->map(fn ($record) => $this->row(
                     'corpuslab_protocol', $record->id, $record->project_id, $projectNames, $record->title,
                     $record->language.' · protokol penelitian · retensi sampai '.$record->retention_until->format('d M Y'),
-                    'approved', $record->reviewed_at ?? $record->updated_at
+                    'approved', $record->reviewed_at ?? $record->updated_at, $bkdCalculator
                 )));
         }
 
         $needle = trim($data['q'] ?? '');
-        $items = $items->filter(function (array $item) use ($needle, $data) {
+        $filteredItems = $items->filter(function (array $item) use ($needle, $data) {
             if (! empty($data['status']) && $item['status'] !== $data['status']) {
                 return false;
             }
@@ -142,13 +155,23 @@ class OutputEvidenceController extends Controller
             return true;
         })->sortByDesc('created_at')->values();
 
+        $bkdSummary = $bkdCalculator->calculateSummary($filteredItems, $request->user()->lecturerProfile);
+
         $perPage = 20;
         $page = LengthAwarePaginator::resolveCurrentPage();
-        $results = new LengthAwarePaginator($items->forPage($page, $perPage)->values(), $items->count(), $perPage, $page, [
+        $results = new LengthAwarePaginator($filteredItems->forPage($page, $perPage)->values(), $filteredItems->count(), $perPage, $page, [
             'path' => $request->url(), 'query' => $request->query(),
         ]);
 
-        return view('outputs.index', ['items' => $results, 'projects' => $projects, 'filters' => $data, 'types' => self::TYPES, 'statuses' => self::STATUSES]);
+        return view('outputs.index', [
+            'items' => $results,
+            'projects' => $this->accessibleProjects(),
+            'academicPeriods' => $academicPeriods,
+            'filters' => $data,
+            'types' => self::TYPES,
+            'statuses' => self::STATUSES,
+            'bkdSummary' => $bkdSummary,
+        ]);
     }
 
     public function show(string $type, int $id, ContentValidityCalculator $calculator): View
@@ -182,46 +205,39 @@ class OutputEvidenceController extends Controller
     private function resolveArtifact(string $type, int $id): array
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
-        $projects = $this->accessibleProjects();
-        $projectIds = $projects->pluck('id');
+        $user = request()->user();
+        abort_unless($user->isStaff(), 403);
+        $projectIds = $this->accessibleProjects()->pluck('id');
+
         $record = match ($type) {
-            'literature_source' => LiteratureSource::query()->whereIn('project_id', $projectIds)->with(['project', 'matrix', 'pages'])->findOrFail($id),
-            'instrument_blueprint' => InstrumentBlueprint::query()->whereIn('project_id', $projectIds)->with('project')->findOrFail($id),
-            'expert_validation' => InstrumentBlueprintVersion::query()->whereHas('blueprint', fn ($query) => $query->whereIn('project_id', $projectIds))
-                ->whereHas('invitations', fn ($query) => $query->whereNotNull('completed_at'))
-                ->with(['blueprint.project', 'invitations.response.ratings'])->findOrFail($id),
-            'gurubahasa_material' => GuruBahasaMaterial::query()->whereIn('project_id', $projectIds)->with('project')->findOrFail($id),
-            'writewise_assignment' => WritingAssignment::query()->whereIn('project_id', $projectIds)->where('status', 'published')->with('project')->findOrFail($id),
-            'writewise_feedback' => WritingFeedbackReport::query()->where('status', 'published')
-                ->whereHas('revision.submission.assignment', fn ($query) => $query->whereIn('project_id', $projectIds))
-                ->with('revision.submission.assignment.project')->findOrFail($id),
-            'corpuslab_protocol' => Corpus::query()->whereIn('project_id', $projectIds)->where('status', 'approved')
-                ->whereDate('retention_until', '>=', today())->with('project')->findOrFail($id),
+            'literature_source' => LiteratureSource::query()->whereIn('project_id', $projectIds)->with(['project:id,name', 'matrix', 'uploader:id,name', 'pages'])->findOrFail($id),
+            'instrument_blueprint' => InstrumentBlueprint::query()->whereIn('project_id', $projectIds)->with('project:id,name')->findOrFail($id),
+            'expert_validation' => InstrumentBlueprintVersion::query()->whereHas('blueprint', fn ($query) => $query->whereIn('project_id', $projectIds))->with(['blueprint.project:id,name', 'invitations.response.ratings'])->findOrFail($id),
+            'gurubahasa_material' => GuruBahasaMaterial::query()->whereIn('project_id', $projectIds)->with('project:id,name')->findOrFail($id),
+            'writewise_assignment' => WritingAssignment::query()->whereIn('project_id', $projectIds)->where('status', 'published')->with('project:id,name')->findOrFail($id),
+            'writewise_feedback' => WritingFeedbackReport::query()->where('status', 'published')->whereHas('revision.submission.assignment', fn ($query) => $query->whereIn('project_id', $projectIds))->with(['revision.submission.assignment.project:id,name', 'revision.submission.student:id,name'])->findOrFail($id),
+            'corpuslab_protocol' => Corpus::query()->whereIn('project_id', $projectIds)->where('status', 'approved')->whereDate('retention_until', '>=', today())->with(['project:id,name', 'creator:id,name', 'reviewer:id,name'])->findOrFail($id),
+            default => abort(404),
         };
+
         $project = match ($type) {
             'expert_validation' => $record->blueprint->project,
             'writewise_feedback' => $record->revision->submission->assignment->project,
             default => $record->project,
         };
-        $title = match ($type) {
-            'literature_source' => $record->title ?: $record->original_name,
-            'instrument_blueprint' => $record->title.' · versi '.$record->current_version,
-            'expert_validation' => $record->title.' · versi '.$record->version_number,
-            'gurubahasa_material' => $record->title,
-            'writewise_assignment' => $record->title,
-            'writewise_feedback' => $record->revision->submission->assignment->title.' · revisi '.$record->revision->revision_number,
-            'corpuslab_protocol' => $record->title,
-        };
-        $status = match ($type) {
-            'expert_validation' => 'expert_review',
-            'writewise_feedback', 'writewise_assignment' => 'published',
-            'corpuslab_protocol' => 'approved',
-            default => $record->status,
-        };
 
         return [
-            'type' => $type, 'type_label' => self::TYPES[$type], 'id' => $record->id, 'record' => $record,
-            'project' => $project, 'title' => $title, 'status' => $status, 'status_label' => self::STATUSES[$status] ?? $status,
+            'type' => $type,
+            'type_label' => self::TYPES[$type],
+            'record' => $record,
+            'project' => $project,
+            'title' => match ($type) {
+                'expert_validation' => $record->title.' · versi '.$record->version_number,
+                'writewise_feedback' => $record->revision->submission->assignment->title.' · feedback revisi '.$record->revision->revision_number,
+                default => $record->title ?: $record->original_name,
+            },
+            'status' => $type === 'expert_validation' ? 'expert_review' : $record->status,
+            'status_label' => self::STATUSES[$type === 'expert_validation' ? 'expert_review' : $record->status] ?? $record->status,
         ];
     }
 
@@ -230,24 +246,43 @@ class OutputEvidenceController extends Controller
         return empty($filters['type']) || $filters['type'] === $type;
     }
 
-    private function row(string $type, int $id, int $projectId, Collection $projectNames, string $title, string $description, string $status, mixed $createdAt): array
+    private function row(string $type, int $id, int $projectId, Collection $projectNames, string $title, string $description, string $status, mixed $createdAt, BkdCalculator $bkdCalculator): array
     {
+        $pillar = $bkdCalculator->determinePillar($type);
+        $sks = $bkdCalculator->calculateItemSks($type, $status);
+
         return [
-            'type' => $type, 'type_label' => self::TYPES[$type], 'id' => $id, 'project_id' => $projectId,
-            'project_name' => $projectNames[$projectId] ?? 'Proyek', 'title' => $title, 'description' => $description,
-            'status' => $status, 'status_label' => self::STATUSES[$status] ?? $status, 'created_at' => $createdAt,
-            'show_url' => route('outputs.show', [$type, $id]), 'download_url' => route('outputs.download', [$type, $id]),
+            'type' => $type,
+            'type_label' => self::TYPES[$type],
+            'id' => $id,
+            'project_id' => $projectId,
+            'project_name' => $projectNames[$projectId] ?? 'Proyek',
+            'title' => $title,
+            'description' => $description,
+            'status' => $status,
+            'status_label' => self::STATUSES[$status] ?? $status,
+            'pillar' => $pillar,
+            'pillar_label' => $bkdCalculator->pillarLabel($pillar),
+            'sks' => $sks,
+            'created_at' => $createdAt,
+            'show_url' => route('outputs.show', [$type, $id]),
+            'download_url' => route('outputs.download', [$type, $id]),
         ];
     }
 
-    private function accessibleProjects(): Collection
+    private function accessibleProjects(?int $academicPeriodId = null): Collection
     {
         $user = request()->user();
         abort_unless($user->isStaff(), 403);
 
-        return Project::query()->where(fn ($query) => $query->where('owner_id', $user->id)
-            ->orWhereHas('members', fn ($members) => $members->where('users.id', $user->id)->where('project_members.role', 'editor')))
-            ->orderBy('name')->get(['id', 'name', 'owner_id', 'archived_at']);
+        $query = Project::query()->where(fn ($q) => $q->where('owner_id', $user->id)
+            ->orWhereHas('members', fn ($members) => $members->where('users.id', $user->id)->where('project_members.role', 'editor')));
+
+        if ($academicPeriodId) {
+            $query->where('academic_period_id', $academicPeriodId);
+        }
+
+        return $query->orderBy('name')->get(['id', 'name', 'owner_id', 'academic_period_id', 'archived_at']);
     }
 
     private function authorizeStaff(): void
