@@ -24,17 +24,17 @@ class ProjectPolicy
 
     public function update(User $user, Project $project): bool
     {
-        return $user->isStaff() && $project->isOwnedBy($user) && $project->archived_at === null;
+        return $user->isStaff() && $project->isOwnedBy($user);
     }
 
     public function archive(User $user, Project $project): bool
     {
-        return $user->isStaff() && $project->isOwnedBy($user) && $project->archived_at === null;
+        return $user->isStaff() && $project->isOwnedBy($user);
     }
 
     public function manageMembers(User $user, Project $project): bool
     {
-        return $user->isStaff() && $project->isOwnedBy($user) && $project->archived_at === null;
+        return $user->isStaff() && $project->isOwnedBy($user);
     }
 
     public function manageAssignments(User $user, Project $project): bool

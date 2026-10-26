@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicPeriod;
+use App\Models\BkdAssessment;
 use App\Models\Corpus;
 use App\Models\GuruBahasaMaterial;
 use App\Models\InstrumentBlueprint;
@@ -157,6 +158,19 @@ class OutputEvidenceController extends Controller
 
         $bkdSummary = $bkdCalculator->calculateSummary($filteredItems, $request->user()->lecturerProfile);
 
+        $activePeriod = $selectedPeriodId
+            ? $academicPeriods->firstWhere('id', $selectedPeriodId)
+            : ($academicPeriods->firstWhere('is_active', true) ?? $academicPeriods->first());
+
+        $currentAssessment = null;
+        if ($activePeriod) {
+            $currentAssessment = BkdAssessment::query()
+                ->where('academic_period_id', $activePeriod->id)
+                ->where('lecturer_id', $request->user()->id)
+                ->with('assessor:id,name')
+                ->first();
+        }
+
         $perPage = 20;
         $page = LengthAwarePaginator::resolveCurrentPage();
         $results = new LengthAwarePaginator($filteredItems->forPage($page, $perPage)->values(), $filteredItems->count(), $perPage, $page, [
@@ -167,6 +181,8 @@ class OutputEvidenceController extends Controller
             'items' => $results,
             'projects' => $this->accessibleProjects(),
             'academicPeriods' => $academicPeriods,
+            'activePeriod' => $activePeriod,
+            'currentAssessment' => $currentAssessment,
             'filters' => $data,
             'types' => self::TYPES,
             'statuses' => self::STATUSES,

@@ -57,6 +57,64 @@
             <p class="mt-1 text-xs text-slate-500">Modul GuruBahasa terkurasi</p>
         </div>
     </div>
+
+    @if($activePeriod)
+    <div class="mt-5 border-t border-slate-100 pt-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Alur Verifikasi Asesor · Periode {{ $activePeriod->name }}</p>
+            <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                @if(!$currentAssessment)
+                    <span class="inline-flex rounded-full bg-slate-100 px-3 py-0.5 text-xs font-semibold text-slate-700">Draf Belum Diajukan</span>
+                    <span class="text-xs text-slate-500">Ajukan portofolio ini setelah seluruh bukti kinerja semester lengkap.</span>
+                @elseif($currentAssessment->status === 'submitted')
+                    <span class="inline-flex rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-800">Menunggu Penilaian Asesor</span>
+                    <span class="text-xs text-slate-500">Diajukan pada {{ $currentAssessment->submitted_at?->format('d M Y H:i') }}.</span>
+                @elseif($currentAssessment->status === 'evaluated')
+                    <span class="inline-flex rounded-full {{ $currentAssessment->verdict === 'M' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800' }} px-3 py-0.5 text-xs font-bold">
+                        Hasil: {{ $currentAssessment->verdictLabel() }}
+                    </span>
+                    <span class="text-xs text-slate-600">Dinilai oleh {{ $currentAssessment->assessor?->name ?? 'Asesor' }} pada {{ $currentAssessment->evaluated_at?->format('d M Y H:i') }}. @if($currentAssessment->notes) Catatan: "{{ $currentAssessment->notes }}" @endif</span>
+                @endif
+            </div>
+        </div>
+
+        <div>
+            @if(!$currentAssessment || $currentAssessment->status === 'draft')
+                <form method="post" action="{{ route('bkd.submit', $activePeriod) }}" onsubmit="return confirm('Ajukan portofolio kinerja semester ini ke Asesor BKD?')">
+                    @csrf
+                    <button class="rounded-lg bg-teal-800 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700">
+                        Ajukan ke Asesor BKD
+                    </button>
+                </form>
+            @elseif($currentAssessment->status === 'submitted' && auth()->user()->id !== $currentAssessment->lecturer_id)
+                <details class="relative">
+                    <summary class="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 list-none">
+                        Beri Penilaian Asesor
+                    </summary>
+                    <div class="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-xl z-20">
+                        <form method="post" action="{{ route('bkd.evaluate', $currentAssessment) }}" class="space-y-3">
+                            @csrf
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Hasil Keputusan Asesor</label>
+                                <select name="verdict" required class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                    <option value="M">Memenuhi (M)</option>
+                                    <option value="TM">Tidak Memenuhi (TM)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Catatan / Rekomendasi</label>
+                                <textarea name="notes" rows="3" placeholder="Masukkan catatan atau evaluasi bukti kinerja..." class="mt-1 w-full rounded-lg border-slate-300 text-xs"></textarea>
+                            </div>
+                            <button class="w-full rounded-lg bg-emerald-700 py-2 text-xs font-bold text-white hover:bg-emerald-800">
+                                Simpan Penilaian Sah
+                            </button>
+                        </form>
+                    </div>
+                </details>
+            @endif
+        </div>
+    </div>
+    @endif
 </section>
 
 <form method="get" action="{{ route('outputs.index') }}" class="mt-6 grid gap-3 rounded-2xl border bg-white p-5 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
