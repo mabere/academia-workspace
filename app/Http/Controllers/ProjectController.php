@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\AcademicPeriod;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -30,8 +31,9 @@ class ProjectController extends Controller
     public function create(): View
     {
         Gate::authorize('create', Project::class);
+        $academicPeriods = AcademicPeriod::orderByDesc('start_date')->get();
 
-        return view('projects.create');
+        return view('projects.create', compact('academicPeriods'));
     }
 
     public function store(StoreProjectRequest $request): RedirectResponse
@@ -53,12 +55,14 @@ class ProjectController extends Controller
 
         $project->load([
             'owner:id,name',
+            'academicPeriod',
             'members:id,name,email',
             'assignments' => fn ($q) => $q->withCount(['students', 'submissions'])->latest(),
         ]);
         $eligibleMembers = User::query()->whereIn('role', ['lecturer', 'admin'])->where('id', '!=', $project->owner_id)->orderBy('name')->get(['id', 'name', 'email']);
+        $academicPeriods = AcademicPeriod::orderByDesc('start_date')->get();
 
-        return view('projects.show', compact('project', 'eligibleMembers'));
+        return view('projects.show', compact('project', 'eligibleMembers', 'academicPeriods'));
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse

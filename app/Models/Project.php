@@ -19,11 +19,16 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  */
 class Project extends Model
 {
-    protected $fillable = ['owner_id', 'name', 'description', 'status', 'pillars', 'archived_at'];
+    protected $fillable = ['owner_id', 'academic_period_id', 'name', 'description', 'status', 'pillars', 'archived_at'];
 
     protected function casts(): array
     {
         return ['pillars' => 'array', 'archived_at' => 'datetime'];
+    }
+
+    public function academicPeriod(): BelongsTo
+    {
+        return $this->belongsTo(AcademicPeriod::class);
     }
 
     /** @return BelongsTo<User, $this> */

@@ -22,6 +22,7 @@ class UpdateProjectRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:160'],
+            'academic_period_id' => ['nullable', 'integer', 'exists:academic_periods,id'],
             'description' => ['nullable', 'string', 'max:5000'],
             'pillars' => ['required', 'array', 'min:1'],
             'pillars.*' => ['required', 'in:teaching,research,community'],
