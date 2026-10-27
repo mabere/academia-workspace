@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(AcademicStructureSeeder::class);
+        $this->call([
+            AcademicStructureSeeder::class,
+            CourseSeeder::class,
+        ]);
     }
 }

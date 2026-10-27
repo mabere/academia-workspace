@@ -3,6 +3,9 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BkdAssessmentController;
 use App\Http\Controllers\CorpusLabController;
+use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseMaterialController;
+use App\Http\Controllers\CourseSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpertValidationController;
 use App\Http\Controllers\GuruBahasaController;
@@ -32,8 +35,25 @@ Route::middleware('auth')->group(function () {
     Route::get('/bkd/periods/{period}/export', [BkdAssessmentController::class, 'export'])->name('bkd.export');
     Route::get('/outputs', [OutputEvidenceController::class, 'index'])->name('outputs.index');
     Route::get('/corpuslab/reviews', [CorpusLabController::class, 'reviewQueue'])->name('corpuslab.reviews');
-    Route::get('/outputs/{type}/{id}/download', [OutputEvidenceController::class, 'download'])->whereIn('type', ['literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.download');
-    Route::get('/outputs/{type}/{id}', [OutputEvidenceController::class, 'show'])->whereIn('type', ['literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.show');
+    Route::get('/outputs/{type}/{id}/download', [OutputEvidenceController::class, 'download'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.download');
+    Route::get('/outputs/{type}/{id}', [OutputEvidenceController::class, 'show'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.show');
+    Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
+    Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
+    Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
+    Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+    Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
+    Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+
+    Route::post('/courses/{course}/materials', [CourseMaterialController::class, 'store'])->name('courses.materials.store');
+    Route::get('/courses/{course}/materials/{material}/download', [CourseMaterialController::class, 'download'])->name('courses.materials.download');
+    Route::get('/courses/{course}/materials/{material}/stream', [CourseMaterialController::class, 'stream'])->name('courses.materials.stream');
+    Route::delete('/courses/{course}/materials/{material}', [CourseMaterialController::class, 'destroy'])->name('courses.materials.destroy');
+
+    Route::post('/courses/{course}/sessions', [CourseSessionController::class, 'store'])->name('courses.sessions.store');
+    Route::delete('/courses/{course}/sessions/{session}', [CourseSessionController::class, 'destroy'])->name('courses.sessions.destroy');
+    Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
+
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
     Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');

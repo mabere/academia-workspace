@@ -99,6 +99,15 @@
                                     d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
                             </svg><span data-sidebar-label>Dashboard</span>
                         </a>
+                        <a href="{{ route('courses.index') }}"
+                            @if (request()->routeIs('courses.*')) aria-current="page" @endif title="Mata Kuliah"
+                            class="sidebar-link {{ request()->routeIs('courses.*') ? 'sidebar-link-active' : '' }}">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                            </svg><span data-sidebar-label>Mata Kuliah</span>
+                        </a>
                         @if (auth()->user()->isStaff())
                             <a href="{{ route('projects.index') }}"
                                 @if (request()->routeIs('projects.*')) aria-current="page" @endif title="Proyek"

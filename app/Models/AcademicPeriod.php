@@ -31,6 +31,11 @@ class AcademicPeriod extends Model
         return $this->hasMany(Project::class);
     }
 
+    public function courses(): HasMany
+    {
+        return $this->hasMany(Course::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

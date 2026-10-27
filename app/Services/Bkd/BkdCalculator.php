@@ -10,9 +10,10 @@ class BkdCalculator
     /**
      * Menghitung estimasi bobot SKS berdasarkan jenis artefak dan statusnya.
      */
-    public function calculateItemSks(string $type, string $status): float
+    public function calculateItemSks(string $type, string $status, float $fallbackSks = 0.5): float
     {
         return match ($type) {
+            'course_teaching' => $fallbackSks,
             'writewise_assignment' => $status === 'published' ? 2.0 : 0.5,
             'writewise_feedback' => $status === 'published' ? 1.0 : 0.25,
             'literature_source' => $status === 'verified' ? 1.0 : 0.5,
@@ -20,7 +21,7 @@ class BkdCalculator
             'expert_validation' => 2.0,
             'corpuslab_protocol' => $status === 'approved' ? 2.0 : 0.5,
             'gurubahasa_material' => in_array($status, ['curated', 'published'], true) ? 1.5 : 0.5,
-            default => 0.5,
+            default => $fallbackSks,
         };
     }
 
@@ -30,7 +31,7 @@ class BkdCalculator
     public function determinePillar(string $type): string
     {
         return match ($type) {
-            'writewise_assignment', 'writewise_feedback' => 'teaching',
+            'course_teaching', 'writewise_assignment', 'writewise_feedback' => 'teaching',
             'literature_source', 'instrument_blueprint', 'expert_validation', 'corpuslab_protocol' => 'research',
             'gurubahasa_material' => 'community',
             default => 'other',

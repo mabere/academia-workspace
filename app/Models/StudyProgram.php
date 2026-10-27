@@ -19,4 +19,9 @@ class StudyProgram extends Model
     {
         return $this->hasMany(LecturerProfile::class);
     }
+
+    public function courses(): HasMany
+    {
+        return $this->hasMany(Course::class);
+    }
 }

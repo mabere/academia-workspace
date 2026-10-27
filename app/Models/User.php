@@ -7,6 +7,8 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -53,6 +55,20 @@ class User extends Authenticatable
     public function lecturerProfile(): HasOne
     {
         return $this->hasOne(LecturerProfile::class);
+    }
+
+    /** @return HasMany<Course, $this> */
+    public function taughtCourses(): HasMany
+    {
+        return $this->hasMany(Course::class, 'lecturer_id');
+    }
+
+    /** @return BelongsToMany<Course, $this> */
+    public function enrolledCourses(): BelongsToMany
+    {
+        return $this->belongsToMany(Course::class, 'course_students', 'student_id', 'course_id')
+            ->withPivot(['nim', 'attendance_rate', 'final_grade', 'letter_grade'])
+            ->withTimestamps();
     }
 
     /**

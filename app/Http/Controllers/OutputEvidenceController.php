@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AcademicPeriod;
 use App\Models\BkdAssessment;
 use App\Models\Corpus;
+use App\Models\Course;
 use App\Models\GuruBahasaMaterial;
 use App\Models\InstrumentBlueprint;
 use App\Models\InstrumentBlueprintVersion;
@@ -14,6 +15,7 @@ use App\Models\WritingAssignment;
 use App\Models\WritingFeedbackReport;
 use App\Services\Bkd\BkdCalculator;
 use App\Services\LitSynth\ContentValidityCalculator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -24,6 +26,7 @@ use Symfony\Component\HttpFoundation\Response;
 class OutputEvidenceController extends Controller
 {
     private const TYPES = [
+        'course_teaching' => 'Mata Kuliah Diampu',
         'literature_source' => 'Sumber literatur',
         'instrument_blueprint' => 'Blueprint instrumen',
         'expert_validation' => 'Validasi pakar',
@@ -47,7 +50,7 @@ class OutputEvidenceController extends Controller
         $data = $request->validate([
             'academic_period_id' => ['nullable', 'integer'],
             'project_id' => ['nullable', 'integer'],
-            'type' => ['nullable', 'in:literature_source,instrument_blueprint,expert_validation,gurubahasa_material,writewise_assignment,writewise_feedback,corpuslab_protocol'],
+            'type' => ['nullable', 'in:course_teaching,literature_source,instrument_blueprint,expert_validation,gurubahasa_material,writewise_assignment,writewise_feedback,corpuslab_protocol'],
             'status' => ['nullable', 'in:uploaded,needs_review,extraction_unavailable,verified,draft,reviewed,expert_review,curated,published,approved'],
             'q' => ['nullable', 'string', 'max:120'],
         ]);
@@ -62,6 +65,26 @@ class OutputEvidenceController extends Controller
         $scopeIds = ! empty($data['project_id']) ? collect([(int) $data['project_id']]) : $projectIds;
         $projectNames = $scopedProjects->pluck('name', 'id');
         $items = collect();
+
+        if ($this->includeType($data, 'course_teaching') && empty($data['project_id'])) {
+            $coursesQuery = Course::query()->where('lecturer_id', $request->user()->id)->with('studyProgram');
+            if ($selectedPeriodId) {
+                $coursesQuery->where('academic_period_id', $selectedPeriodId);
+            }
+            $items = $items->concat($coursesQuery->latest()->get()->map(fn ($record) => [
+                'type' => 'course_teaching',
+                'id' => $record->id,
+                'project_id' => 0,
+                'project_name' => $record->studyProgram->name ?? 'Prodi',
+                'title' => 'Mengampu Mata Kuliah '.$record->name.' ('.$record->code.' · '.$record->class_group.')',
+                'description' => $record->credit_hours.' SKS · '.$record->scheduleLabel().' · '.$record->sessions()->count().' sesi jurnal tercatat',
+                'status' => $record->sessions()->count() >= 1 ? 'verified' : 'draft',
+                'created_at' => $record->updated_at,
+                'sks' => (float) $record->credit_hours,
+                'pillar' => 'teaching',
+                'pillar_label' => 'Pendidikan',
+            ]));
+        }
 
         if ($this->includeType($data, 'literature_source')) {
             $items = $items->concat(LiteratureSource::query()->whereIn('project_id', $scopeIds)->with('matrix')->latest()->get()->map(fn ($record) => $this->row(
@@ -190,9 +213,13 @@ class OutputEvidenceController extends Controller
         ]);
     }
 
-    public function show(string $type, int $id, ContentValidityCalculator $calculator): View
+    public function show(string $type, int $id, ContentValidityCalculator $calculator): View|RedirectResponse
     {
         $this->authorizeStaff();
+        if ($type === 'course_teaching') {
+            return redirect()->route('courses.show', $id);
+        }
+
         $artifact = $this->resolveArtifact($type, $id);
         if ($type === 'expert_validation') {
             $artifact['statistics'] = $calculator->calculate($artifact['record']);
@@ -202,9 +229,13 @@ class OutputEvidenceController extends Controller
         return view('outputs.show', compact('artifact'));
     }
 
-    public function download(string $type, int $id): Response
+    public function download(string $type, int $id): Response|RedirectResponse
     {
         $this->authorizeStaff();
+        if ($type === 'course_teaching') {
+            return redirect()->route('courses.sessions.print', $id);
+        }
+
         $artifact = $this->resolveArtifact($type, $id);
         if ($type === 'literature_source') {
             abort_unless(Storage::disk('local')->exists($artifact['record']->storage_path), 404);

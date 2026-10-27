@@ -23,11 +23,17 @@ use Illuminate\Support\Carbon;
  */
 class WritingAssignment extends Model
 {
-    protected $fillable = ['project_id', 'created_by', 'title', 'instructions', 'feedback_language', 'feedback_level', 'status', 'due_at'];
+    protected $fillable = ['project_id', 'course_id', 'created_by', 'title', 'instructions', 'feedback_language', 'feedback_level', 'status', 'due_at'];
 
     protected function casts(): array
     {
         return ['due_at' => 'datetime'];
+    }
+
+    /** @return BelongsTo<Course, $this> */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
     }
 
     /** @return BelongsTo<Project, $this> */

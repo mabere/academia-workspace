@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicPeriod;
 use App\Models\BkdAssessment;
+use App\Models\Course;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Bkd\BkdCalculator;
@@ -128,6 +129,27 @@ class BkdAssessmentController extends Controller
             ->pluck('id');
 
         $items = collect();
+
+        // Ambil mata kuliah yang diampu dosen pada periode semester ini
+        $courses = Course::query()->where('academic_period_id', $period->id)
+            ->where('lecturer_id', $lecturer->id)
+            ->with(['studyProgram'])
+            ->withCount(['sessions', 'materials', 'students'])
+            ->get();
+
+        foreach ($courses as $course) {
+            $items->push([
+                'type' => 'course_teaching',
+                'type_label' => 'Perkuliahan: '.$course->code.' ('.$course->class_group.')',
+                'title' => 'Mengampu Mata Kuliah '.$course->name.' ('.$course->credit_hours.' SKS, '.$course->sessions_count.' Sesi Jurnal Kuliah)',
+                'project_name' => $course->studyProgram->name ?? 'Prodi',
+                'pillar' => 'teaching',
+                'status' => $course->sessions_count >= 1 ? 'verified' : 'draft',
+                'sks' => (float) $course->credit_hours,
+                'date' => $course->updated_at,
+            ]);
+        }
+
         $projects = Project::query()->whereIn('id', $projectIds)
             ->with(['literatureSources', 'instrumentBlueprints', 'guruBahasaMaterials', 'assignments'])
             ->get();
