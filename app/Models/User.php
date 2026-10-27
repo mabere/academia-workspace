@@ -38,6 +38,22 @@ class User extends Authenticatable
         return in_array($this->role, ['lecturer', 'admin', 'superadmin'], true);
     }
 
+    public function isSuperadmin(): bool
+    {
+        return $this->role === 'superadmin';
+    }
+
+    public function roleLabel(): string
+    {
+        return match ($this->role) {
+            'superadmin' => 'Superadmin',
+            'admin' => 'Administrator',
+            'lecturer' => 'Dosen Pengampu',
+            'student' => 'Mahasiswa',
+            default => 'Pengguna Umum',
+        };
+    }
+
     /**
      * Get the attributes that should be cast.
      *

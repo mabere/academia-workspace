@@ -14,6 +14,7 @@ use App\Http\Controllers\LitSynthController;
 use App\Http\Controllers\OutputEvidenceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WritingAssignmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/bkd/periods/{period}/export', [BkdAssessmentController::class, 'export'])->name('bkd.export');
     Route::get('/outputs', [OutputEvidenceController::class, 'index'])->name('outputs.index');
     Route::get('/corpuslab/reviews', [CorpusLabController::class, 'reviewQueue'])->name('corpuslab.reviews');
+
+    // Manajemen Pengguna (Akses Khusus Superadmin)
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
     Route::get('/outputs/{type}/{id}/download', [OutputEvidenceController::class, 'download'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.download');
     Route::get('/outputs/{type}/{id}', [OutputEvidenceController::class, 'show'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.show');
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
