@@ -14,11 +14,14 @@
     <a href="#main-content"
         class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:shadow-lg">Lewati
         ke konten</a>
-    <div class="{{ auth()->check() ? 'workspace-shell' : 'guest-shell' }}">
+    @php
+        $showSidebar = auth()->check() && ! request()->routeIs('home') && ! ($hideSidebar ?? false);
+    @endphp
+    <div class="{{ $showSidebar ? 'workspace-shell' : 'guest-shell' }}">
         <header class="workspace-header border-b border-slate-200 bg-white">
             <nav aria-label="Navigasi atas" class="flex min-h-[4.5rem] items-center justify-between gap-4 px-4 sm:px-6">
                 <div class="flex min-w-0 items-center gap-3">
-                    @auth
+                    @if ($showSidebar)
                         <button id="sidebar-toggle-mobile" type="button" aria-controls="workspace-sidebar"
                             aria-expanded="false" aria-label="Ciutkan menu samping"
                             class="sidebar-toggle-mobile inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700">
@@ -31,7 +34,7 @@
                                 <path stroke-linecap="round" d="m6 6 12 12M18 6 6 18" />
                             </svg>
                         </button>
-                    @endauth
+                    @endif
                     <a href="{{ route('home') }}" aria-label="ELT Academic Hub"
                         class="inline-flex min-w-0 shrink items-center gap-2 sm:gap-3">
                         <img src="{{ asset('apple-touch-icon.png') }}" width="48" height="48" alt=""
@@ -44,6 +47,17 @@
                 </div>
                 <div class="flex shrink-0 items-center gap-3 text-sm sm:gap-4">
                     @auth
+                        @if (! $showSidebar)
+                            <a href="{{ route('dashboard') }}"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4 text-teal-600" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
+                                </svg>
+                                <span>Dashboard</span>
+                            </a>
+                        @endif
                         <a href="{{ route('profile.edit') }}"
                             class="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-slate-50"
                             aria-label="Edit profil {{ auth()->user()->name }}">
@@ -68,7 +82,7 @@
             </nav>
         </header>
 
-        @auth
+        @if ($showSidebar)
             <button id="sidebar-backdrop" type="button" aria-label="Tutup menu samping" class="sidebar-backdrop"
                 tabindex="-1"></button>
             <aside id="workspace-sidebar" class="workspace-sidebar border-r border-slate-200 bg-white"
@@ -179,7 +193,7 @@
                     </div>
                 </div>
             </aside>
-        @endauth
+        @endif
 
         <main id="main-content" tabindex="-1" class="workspace-main min-w-0 px-5 py-8 sm:px-7 sm:py-10">
             <div class="mx-auto w-full max-w-7xl">
