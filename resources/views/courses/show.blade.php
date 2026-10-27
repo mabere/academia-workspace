@@ -463,12 +463,85 @@
 
         {{-- TAB 3: TUGAS MAHASISWA & PENILAIAN --}}
         <div x-show="tab === 'assignments'" class="space-y-6">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-base font-bold text-slate-900">Penugasan Perkuliahan</h2>
-                    <p class="text-xs text-slate-500">Tugas penulisan, telaah literatur, dan latihan mandiri mahasiswa.</p>
+                    <h2 class="text-base font-bold text-slate-900">Penugasan Perkuliahan & Evaluasi Nilai</h2>
+                    <p class="text-xs text-slate-500">Tugas penulisan akademik, submisi draf mahasiswa, penilaian berkriteria, dan rekapitulasi nilai.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+                        <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Cetak Rekap Nilai Sah A4
+                    </a>
                 </div>
             </div>
+
+            {{-- Form Terbitkan Tugas Baru (Dosen Pengampu) --}}
+            @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
+                <details class="group rounded-2xl border border-teal-200 bg-teal-50/40 p-5 transition">
+                    <summary class="flex cursor-pointer items-center justify-between font-bold text-teal-900">
+                        <span class="flex items-center gap-2">
+                            <svg class="h-5 w-5 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Terbitkan Tugas Perkuliahan Baru (WriteWise AI)
+                        </span>
+                        <span class="rounded-lg bg-teal-700 px-3 py-1 text-xs text-white group-open:bg-teal-800">
+                            + Buka Formulir
+                        </span>
+                    </summary>
+
+                    <form method="post" action="{{ route('courses.assignments.store', $course) }}" class="mt-4 space-y-4 border-t border-teal-200 pt-4">
+                        @csrf
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-700">Judul Tugas Perkuliahan *</label>
+                                <input type="text" name="title" required placeholder="Contoh: Esai Kritis: Perbandingan Teori Pembelajaran Bahasa" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Batas Waktu Pengumpulan (Deadline)</label>
+                                <input type="datetime-local" name="due_at" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Nama Rubrik Penilaian</label>
+                                <input type="text" name="rubric_name" value="Rubrik Analitik Penulisan Akademik" placeholder="Rubrik Penilaian" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Bahasa Umpan Balik AI</label>
+                                <select name="feedback_language" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                                    <option value="id">Bahasa Indonesia</option>
+                                    <option value="en">English (Academic)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700">Tingkat Intervensi Koreksi</label>
+                                <select name="feedback_level" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                                    <option value="indirect">Indirect (Koreksi Panduan/Pertanyaan Kritis)</option>
+                                    <option value="balanced">Balanced (Seimbang & Rekomendasi)</option>
+                                    <option value="direct">Direct (Perbaikan Langsung)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700">Petunjuk Pengerjaan & Kriteria Tugas *</label>
+                            <textarea name="instructions" rows="4" required placeholder="Jelaskan topik penulisan, sistematika bab, jumlah kata minimum/maksimum, dan format referensi..." class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700"></textarea>
+                            <p class="mt-1 text-[11px] text-slate-500">Sistem secara otomatis mendaftarkan seluruh mahasiswa kelas ini ke tugas dan mengaitkannya ke wadah Proyek Tri Dharma Pengajaran.</p>
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-700 transition">
+                                Terbitkan Tugas ke Seluruh Mahasiswa
+                            </button>
+                        </div>
+                    </form>
+                </details>
+            @endif
 
             @if($assignments->isEmpty())
                 <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
@@ -476,27 +549,97 @@
                     <p class="mt-1 text-xs text-slate-500">Tugas yang dibuat pada kelas ini akan muncul di sini untuk submisi mahasiswa.</p>
                 </div>
             @else
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="space-y-6">
                     @foreach($assignments as $assignment)
-                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-600 transition">
-                            <div class="flex items-start justify-between gap-3">
-                                <h3 class="font-bold text-slate-900">
-                                    <a href="{{ route('assignments.show', $assignment) }}" class="hover:text-teal-800">
-                                        {{ $assignment->title }}
+                        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-300 transition">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-base font-bold text-slate-900">
+                                            <a href="{{ route('assignments.show', $assignment) }}" class="hover:text-teal-800">
+                                                {{ $assignment->title }}
+                                            </a>
+                                        </h3>
+                                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                                            {{ $assignment->status }}
+                                        </span>
+                                    </div>
+                                    @if($assignment->due_at)
+                                        <p class="mt-1 text-xs text-amber-700 font-medium">
+                                            Batas Waktu: {{ $assignment->due_at->translatedFormat('d F Y, H:i') }}
+                                        </p>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="{{ route('assignments.show', $assignment) }}" class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900">
+                                        Buka di WriteWise &rarr;
                                     </a>
-                                </h3>
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                                    {{ $assignment->status }}
-                                </span>
+                                </div>
                             </div>
 
-                            <p class="mt-2 text-xs text-slate-600 line-clamp-2">{{ $assignment->instructions }}</p>
+                            <p class="mt-3 text-xs text-slate-600 leading-relaxed">{{ $assignment->instructions }}</p>
 
-                            <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                                <span class="text-slate-500">Submisi: <strong>{{ $assignment->submissions_count }}</strong> mahasiswa</span>
-                                <a href="{{ route('assignments.show', $assignment) }}" class="font-bold text-teal-800 hover:text-teal-900">
-                                    Lihat Tugas & Nilai &rarr;
-                                </a>
+                            {{-- Submisi Mahasiswa & Input Penilaian Cepat --}}
+                            <div class="mt-5 border-t border-slate-100 pt-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        Submisi Mahasiswa Kelas ({{ $assignment->submissions->count() }}/{{ $students->count() }})
+                                    </h4>
+                                </div>
+
+                                @if($assignment->submissions->isEmpty())
+                                    <p class="text-xs text-slate-400 italic">Belum ada mahasiswa yang mengumpulkan draf tugas ini.</p>
+                                @else
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left text-xs text-slate-700">
+                                            <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
+                                                <tr>
+                                                    <th class="py-2 px-3">Mahasiswa</th>
+                                                    <th class="py-2 px-3 w-28 text-center">Status</th>
+                                                    <th class="py-2 px-3 w-24 text-center">Nilai (0-100)</th>
+                                                    <th class="py-2 px-3 w-20 text-center">Mutu</th>
+                                                    @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
+                                                        <th class="py-2 px-3">Form Penilaian Dosen</th>
+                                                    @endif
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100">
+                                                @foreach($assignment->submissions as $sub)
+                                                    <tr class="hover:bg-slate-50/70 transition">
+                                                        <td class="py-2.5 px-3">
+                                                            <div class="font-bold text-slate-900">{{ $sub->student->name }}</div>
+                                                            <div class="text-[11px] text-slate-400">{{ $sub->student->email }}</div>
+                                                        </td>
+                                                        <td class="py-2.5 px-3 text-center">
+                                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold
+                                                                {{ $sub->status === 'graded' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                                {{ $sub->status === 'graded' ? 'Dinilai' : 'Draf/Terkirim' }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="py-2.5 px-3 text-center font-bold text-teal-800 text-sm">
+                                                            {{ $sub->score !== null ? number_format($sub->score, 1) : '-' }}
+                                                        </td>
+                                                        <td class="py-2.5 px-3 text-center font-bold text-slate-700">
+                                                            {{ $sub->letterGrade() }}
+                                                        </td>
+                                                        @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
+                                                            <td class="py-2.5 px-3">
+                                                                <form method="post" action="{{ route('courses.assignments.grade', [$course, $assignment, $sub]) }}" class="flex items-center gap-2">
+                                                                    @csrf
+                                                                    <input type="number" step="0.1" min="0" max="100" name="score" required value="{{ $sub->score }}" placeholder="Nilai" class="w-20 rounded border-slate-300 py-1 text-xs text-center font-bold">
+                                                                    <input type="text" name="feedback_notes" placeholder="Catatan evaluasi singkat..." class="w-48 sm:w-64 rounded border-slate-300 py-1 text-xs">
+                                                                    <button type="submit" class="rounded bg-teal-800 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700 transition">
+                                                                        Simpan
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        @endif
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -507,8 +650,11 @@
         {{-- TAB 4: PESERTA KELAS (MAHASISWA) --}}
         <div x-show="tab === 'students'" class="space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div class="border-b border-slate-100 bg-slate-50 px-5 py-3">
+                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Daftar Mahasiswa Terdaftar ({{ $students->count() }} Mahasiswa)</span>
+                    <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
+                        Cetak Rekap Nilai Sah A4 &rarr;
+                    </a>
                 </div>
 
                 @if($students->isEmpty())

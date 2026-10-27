@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BkdAssessmentController;
 use App\Http\Controllers\CorpusLabController;
+use App\Http\Controllers\CourseAssignmentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\CourseSessionController;
@@ -53,6 +54,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/courses/{course}/sessions', [CourseSessionController::class, 'store'])->name('courses.sessions.store');
     Route::delete('/courses/{course}/sessions/{session}', [CourseSessionController::class, 'destroy'])->name('courses.sessions.destroy');
     Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
+
+    Route::post('/courses/{course}/assignments', [CourseAssignmentController::class, 'store'])->name('courses.assignments.store');
+    Route::post('/courses/{course}/assignments/{assignment}/submissions/{submission}/grade', [CourseAssignmentController::class, 'grade'])->name('courses.assignments.grade');
+    Route::get('/courses/{course}/grades/print', [CourseAssignmentController::class, 'printGrades'])->name('courses.grades.print');
 
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');

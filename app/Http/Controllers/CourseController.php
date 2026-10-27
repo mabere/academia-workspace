@@ -88,7 +88,7 @@ class CourseController extends Controller
             'materials.uploader',
             'sessions',
             'students.student',
-            'assignments' => fn ($q) => $q->withCount(['submissions', 'students']),
+            'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with(['submissions.student', 'rubric']),
         ]);
 
         return view('courses.show', [

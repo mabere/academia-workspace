@@ -15,7 +15,40 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class WritingSubmission extends Model
 {
-    protected $fillable = ['assignment_id', 'student_id', 'assignment_version_id', 'status'];
+    protected $fillable = ['assignment_id', 'student_id', 'assignment_version_id', 'rubric_version_id', 'status', 'score', 'graded_by', 'graded_at'];
+
+    protected function casts(): array
+    {
+        return [
+            'score' => 'float',
+            'graded_at' => 'datetime',
+        ];
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function grader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'graded_by');
+    }
+
+    public function letterGrade(): string
+    {
+        if ($this->score === null) {
+            return '-';
+        }
+
+        return match (true) {
+            $this->score >= 85.0 => 'A',
+            $this->score >= 80.0 => 'A-',
+            $this->score >= 75.0 => 'B+',
+            $this->score >= 70.0 => 'B',
+            $this->score >= 65.0 => 'B-',
+            $this->score >= 60.0 => 'C+',
+            $this->score >= 55.0 => 'C',
+            $this->score >= 40.0 => 'D',
+            default => 'E',
+        };
+    }
 
     /** @return BelongsTo<WritingAssignment, $this> */
     public function assignment(): BelongsTo
