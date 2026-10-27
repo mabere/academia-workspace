@@ -7,6 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('apple-touch-icon.png') }}">
     <title>@yield('title', 'ELT Academic Hub')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
 <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
