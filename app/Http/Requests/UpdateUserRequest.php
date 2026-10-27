@@ -20,6 +20,7 @@ class UpdateUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'role' => ['required', 'string', 'in:superadmin,admin,lecturer,student,public'],
+            'is_active' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             // Profil Dosen
             'study_program_id' => ['nullable', 'exists:study_programs,id'],

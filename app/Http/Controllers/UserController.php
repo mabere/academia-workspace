@@ -20,6 +20,8 @@ class UserController extends Controller
 
         $counts = [
             'all' => User::count(),
+            'active' => User::where('is_active', true)->count(),
+            'inactive' => User::where('is_active', false)->count(),
             'superadmin' => User::where('role', 'superadmin')->count(),
             'admin' => User::where('role', 'admin')->count(),
             'lecturer' => User::where('role', 'lecturer')->count(),
@@ -31,6 +33,14 @@ class UserController extends Controller
 
         if ($request->filled('role') && $request->role !== 'all') {
             $query->where('role', $request->role);
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            if ($request->status === 'active') {
+                $query->where('is_active', true);
+            } elseif ($request->status === 'inactive') {
+                $query->where('is_active', false);
+            }
         }
 
         if ($request->filled('study_program_id')) {
@@ -57,6 +67,7 @@ class UserController extends Controller
             'counts' => $counts,
             'studyPrograms' => $studyPrograms,
             'selectedRole' => $request->input('role', 'all'),
+            'selectedStatus' => $request->input('status', 'all'),
             'searchQuery' => $request->input('q', ''),
             'selectedStudyProgramId' => $request->input('study_program_id'),
         ]);
@@ -77,11 +88,12 @@ class UserController extends Controller
     {
         $data = $request->validated();
 
-        $user = DB::transaction(function () use ($data) {
+        $user = DB::transaction(function () use ($data, $request) {
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'role' => $data['role'],
+                'is_active' => $request->has('is_active') ? (bool) $request->is_active : true,
                 'password' => Hash::make($data['password']),
             ]);
 
@@ -125,12 +137,19 @@ class UserController extends Controller
             return back()->withErrors(['role' => 'Anda tidak dapat menurunkan peran (demote) akun Anda sendiri dari superadmin.'])->withInput();
         }
 
-        DB::transaction(function () use ($user, $data) {
+        DB::transaction(function () use ($user, $data, $request) {
             $userUpdate = [
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'role' => $data['role'],
             ];
+
+            // Akun sendiri selalu aktif demi mencegah lockout
+            if ($user->id === $request->user()->id) {
+                $userUpdate['is_active'] = true;
+            } elseif ($request->has('is_active')) {
+                $userUpdate['is_active'] = (bool) $request->is_active;
+            }
 
             if (! empty($data['password'])) {
                 $userUpdate['password'] = Hash::make($data['password']);
@@ -155,6 +174,21 @@ class UserController extends Controller
         });
 
         return redirect()->route('users.index')->with('status', "Data pengguna {$user->name} berhasil diperbarui.");
+    }
+
+    public function toggleStatus(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->role === 'superadmin', 403, 'Akses terbatas untuk superadmin.');
+
+        if ($user->id === $request->user()->id) {
+            return back()->withErrors(['error' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.']);
+        }
+
+        $user->update(['is_active' => ! $user->is_active]);
+
+        $statusText = $user->is_active ? 'diaktifkan kembali' : 'dinonaktifkan';
+
+        return back()->with('status', "Akun pengguna {$user->name} ({$user->email}) berhasil {$statusText}.");
     }
 
     public function resetPassword(Request $request, User $user): RedirectResponse

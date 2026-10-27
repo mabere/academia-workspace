@@ -25,7 +25,13 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $credentials = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+
+        $user = User::where('email', $credentials['email'])->first();
+        if ($user && ! $user->isActive() && Hash::check($credentials['password'], $user->password)) {
+            return back()->withErrors(['email' => 'Akun Anda telah dinonaktifkan oleh Administrator. Silakan hubungi pengelola sistem.'])->onlyInput('email');
+        }
+
+        if (! Auth::attempt([...$credentials, 'is_active' => true], $request->boolean('remember'))) {
             return back()->withErrors(['email' => 'Email atau kata sandi tidak cocok.'])->onlyInput('email');
         }
         $request->session()->regenerate();

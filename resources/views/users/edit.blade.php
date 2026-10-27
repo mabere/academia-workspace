@@ -115,6 +115,26 @@
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
             </div>
+
+            {{-- Status Keaktifan Akun --}}
+            <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->isActive())) {{ $user->id === auth()->id() ? 'disabled' : '' }} class="rounded text-purple-800 focus:ring-purple-800">
+                        <span class="text-xs font-bold text-slate-800">Status Akun Aktif (Dapat Login & Akses Platform)</span>
+                    </label>
+                    @if($user->id === auth()->id())
+                        <p class="mt-1 text-[11px] text-slate-400">Akun Anda sendiri harus selalu aktif demi keamanan akses sistem.</p>
+                    @else
+                        <p class="mt-1 text-[11px] text-slate-500">Jika dinonaktifkan, akun ini diblokir dari login ke aplikasi hingga diaktifkan kembali.</p>
+                    @endif
+                </div>
+                <div>
+                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold border {{ $user->isActive() ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200' }}">
+                        {{ $user->isActive() ? '● Akun Aktif' : '○ Akun Nonaktif' }}
+                    </span>
+                </div>
+            </div>
         </div>
 
         {{-- Seksi 2: Informasi Khusus Dosen (Tampil saat role = lecturer) --}}
@@ -240,20 +260,42 @@
         </form>
     </div>
 
-    {{-- Zona Bahaya: Hapus Pengguna --}}
+    {{-- Zona Tindakan Khusus: Status & Penghapusan Akun --}}
     @if($user->id !== auth()->id())
-        <div class="rounded-2xl border border-red-200 bg-red-50/40 p-6 shadow-xs">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-red-900 border-b border-red-200 pb-2">
-                Zona Bahaya: Hapus Pengguna
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-2">
+                Aksi Khusus Akun Pengguna
             </h2>
-            <p class="mt-2 text-xs text-red-700">
-                Menghapus akun pengguna akan mencabut seluruh akses login dan data terkait pengguna ini. Tindakan ini tidak dapat dibatalkan.
-            </p>
-            <div class="mt-4 flex justify-end">
+
+            <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border {{ $user->isActive() ? 'border-amber-200 bg-amber-50/50' : 'border-emerald-200 bg-emerald-50/50' }}">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-900">
+                        {{ $user->isActive() ? 'Nonaktifkan Akun Pengguna' : 'Aktifkan Kembali Akun Pengguna' }}
+                    </h3>
+                    <p class="text-[11px] text-slate-600 mt-0.5">
+                        {{ $user->isActive() ? 'Pengguna tidak akan dapat login ke platform sampai diaktifkan kembali.' : 'Buka blokir agar pengguna dapat kembali masuk dan menggunakan platform.' }}
+                    </p>
+                </div>
+                <form method="post" action="{{ route('users.toggle-status', $user) }}">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="rounded-xl px-4 py-2 text-xs font-bold transition {{ $user->isActive() ? 'bg-amber-800 text-white hover:bg-amber-700' : 'bg-emerald-800 text-white hover:bg-emerald-700' }}">
+                        {{ $user->isActive() ? 'Nonaktifkan Akun' : 'Aktifkan Akun' }}
+                    </button>
+                </form>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-red-200 bg-red-50/40">
+                <div>
+                    <h3 class="text-xs font-bold text-red-900">Hapus Akun Pengguna Secara Permanen</h3>
+                    <p class="text-[11px] text-red-700 mt-0.5">
+                        Menghapus akun pengguna akan mencabut seluruh data akses. Tindakan ini tidak dapat dibatalkan.
+                    </p>
+                </div>
                 <form method="post" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus akun {{ $user->name }} ({{ $user->email }}) secara permanen?');">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="rounded-xl bg-red-700 px-5 py-2 text-xs font-bold text-white hover:bg-red-800 transition">
+                    <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800 transition">
                         Hapus Akun Pengguna
                     </button>
                 </form>

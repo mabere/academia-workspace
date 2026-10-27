@@ -7,6 +7,7 @@ use App\Models\LecturerProfile;
 use App\Models\StudyProgram;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -191,6 +192,84 @@ class UserManagementTest extends TestCase
 
         // Mahasiswa dilarang
         $this->actingAs($this->student)->get(route('users.index'))->assertForbidden();
+    }
+
+    public function test_superadmin_can_toggle_user_status_and_deactivated_user_cannot_login(): void
+    {
+        $testUser = User::factory()->create([
+            'email' => 'aktif@example.test',
+            'password' => Hash::make('Secret12345!'),
+            'role' => 'student',
+            'is_active' => true,
+        ]);
+
+        // 1. Superadmin menonaktifkan akun
+        $response = $this->actingAs($this->superadmin)->patch(route('users.toggle-status', $testUser));
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+
+        $testUser->refresh();
+        $this->assertFalse($testUser->isActive());
+
+        // 2. Pengguna nonaktif mencoba login (harus ditolak dengan pesan jelas)
+        Auth::logout();
+        $this->flushSession();
+
+        $loginResponse = $this->post(route('login'), [
+            'email' => 'aktif@example.test',
+            'password' => 'Secret12345!',
+        ]);
+        $loginResponse->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        // 3. Superadmin mengaktifkan kembali akun
+        $reactivateResponse = $this->actingAs($this->superadmin)->patch(route('users.toggle-status', $testUser));
+        $reactivateResponse->assertRedirect();
+
+        $testUser->refresh();
+        $this->assertTrue($testUser->isActive());
+
+        // 4. Pengguna aktif sekarang dapat login
+        Auth::logout();
+        $this->flushSession();
+
+        $successLoginResponse = $this->post(route('login'), [
+            'email' => 'aktif@example.test',
+            'password' => 'Secret12345!',
+        ]);
+        $successLoginResponse->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($testUser);
+    }
+
+    public function test_superadmin_cannot_deactivate_their_own_account(): void
+    {
+        $response = $this->actingAs($this->superadmin)->patch(route('users.toggle-status', $this->superadmin));
+
+        $response->assertSessionHasErrors('error');
+        $this->superadmin->refresh();
+        $this->assertTrue($this->superadmin->isActive());
+    }
+
+    public function test_users_index_can_filter_by_active_and_inactive_status(): void
+    {
+        $inactiveStudent = User::factory()->create([
+            'name' => 'Siswa Nonaktif',
+            'email' => 'nonaktif@example.test',
+            'role' => 'student',
+            'is_active' => false,
+        ]);
+
+        // Filter aktif
+        $activeResponse = $this->actingAs($this->superadmin)->get(route('users.index', ['status' => 'active']));
+        $activeResponse->assertOk();
+        $activeResponse->assertSee('Dr. Budi Santoso');
+        $activeResponse->assertDontSee('Siswa Nonaktif');
+
+        // Filter nonaktif
+        $inactiveResponse = $this->actingAs($this->superadmin)->get(route('users.index', ['status' => 'inactive']));
+        $inactiveResponse->assertOk();
+        $inactiveResponse->assertSee('Siswa Nonaktif');
+        $inactiveResponse->assertDontSee('Dr. Budi Santoso');
     }
 
     public function test_guest_is_redirected_to_login(): void
