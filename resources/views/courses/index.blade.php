@@ -213,63 +213,66 @@
                 <table class="w-full text-left text-xs text-slate-700">
                     <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
                         <tr>
-                            <th class="py-3 px-4 w-12 text-center">No</th>
-                            <th class="py-3 px-4 w-36">Kode & Kelas</th>
-                            <th class="py-3 px-4">Mata Kuliah & Dosen Pengampu</th>
-                            <th class="py-3 px-4 w-20 text-center">Bobot</th>
-                            <th class="py-3 px-4 w-44">Jadwal & Ruang</th>
-                            <th class="py-3 px-4 w-36">Sesi Berjalan</th>
-                            <th class="py-3 px-4 w-32 text-center">{{ auth()->user()->isStaff() ? 'Bahan & Mhs' : 'Bahan & Tugas' }}</th>
-                            <th class="py-3 px-4 w-28 text-center">Aksi</th>
+                            <th class="py-3 px-4 w-12 text-center whitespace-nowrap">No</th>
+                            <th class="py-3 px-4 w-36 whitespace-nowrap">Kode & Kelas</th>
+                            <th class="py-3 px-4 min-w-[220px]">Mata Kuliah & Dosen Pengampu</th>
+                            <th class="py-3 px-4 w-24 text-center whitespace-nowrap">Bobot</th>
+                            <th class="py-3 px-4 w-40 whitespace-nowrap">Jadwal & Ruang</th>
+                            <th class="py-3 px-4 w-36 whitespace-nowrap">Sesi Berjalan</th>
+                            <th class="py-3 px-4 w-32 text-center whitespace-nowrap">{{ auth()->user()->isStaff() ? 'Bahan & Mhs' : 'Bahan & Tugas' }}</th>
+                            <th class="py-3 px-4 w-36 text-center whitespace-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @foreach($courses as $idx => $course)
                             <tr class="hover:bg-slate-50/70 transition">
-                                <td class="py-3.5 px-4 text-center text-slate-400 font-medium">{{ $idx + 1 }}</td>
-                                <td class="py-3.5 px-4">
+                                <td class="py-3.5 px-4 text-center text-slate-400 font-medium whitespace-nowrap">{{ $idx + 1 }}</td>
+                                <td class="py-3.5 px-4 whitespace-nowrap">
                                     <span class="inline-flex rounded-md bg-teal-50 px-2.5 py-1 font-mono font-bold text-teal-900 border border-teal-200/60">
                                         {{ $course->code }} · {{ $course->class_group }}
                                     </span>
                                 </td>
-                                <td class="py-3.5 px-4">
+                                <td class="py-3.5 px-4 min-w-[220px]">
                                     <a href="{{ route('courses.show', $course) }}" class="font-bold text-slate-900 hover:text-teal-800 transition block text-sm">
                                         {{ $course->name }}
                                     </a>
-                                    <span class="text-slate-500 text-[11px]">
+                                    <span class="text-slate-500 text-[11px] block mt-0.5">
                                         Dosen: <strong class="text-slate-700">{{ $course->lecturer->name }}</strong> &middot; {{ $course->studyProgram->name }}
                                     </span>
                                 </td>
-                                <td class="py-3.5 px-4 text-center">
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                     <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 font-bold text-slate-700">
                                         {{ $course->credit_hours }} SKS
                                     </span>
                                 </td>
-                                <td class="py-3.5 px-4 text-slate-600">
-                                    <div class="font-medium">{{ $course->scheduleLabel() }}</div>
+                                <td class="py-3.5 px-4 whitespace-nowrap text-slate-600">
+                                    <div class="font-medium text-slate-800">{{ $course->scheduleLabel() }}</div>
                                     <div class="text-[11px] text-slate-400">{{ $course->room ?: 'Daring' }}</div>
                                 </td>
-                                <td class="py-3.5 px-4">
+                                <td class="py-3.5 px-4 whitespace-nowrap">
                                     <div class="flex items-center justify-between text-[11px] mb-1">
-                                        <span class="font-bold text-slate-700">{{ $course->sessions_count }}/16</span>
+                                        <span class="font-bold text-slate-700">{{ $course->sessions_count }}/16 Sesi</span>
                                         <span class="text-slate-400">{{ round(($course->sessions_count / 16) * 100) }}%</span>
                                     </div>
-                                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 min-w-[100px]">
                                         <div class="h-full rounded-full bg-teal-600" style="width: {{ min(100, round(($course->sessions_count / 16) * 100)) }}%"></div>
                                     </div>
                                 </td>
-                                <td class="py-3.5 px-4 text-center">
-                                    <span class="font-semibold text-slate-700">{{ $course->materials_count }} materi</span>
-                                    <span class="text-slate-400">·</span>
-                                    @if(auth()->user()->isStaff())
-                                        <span class="font-semibold text-slate-700">{{ $course->students_count }} mhs</span>
-                                    @else
-                                        <span class="font-semibold text-teal-800">{{ $course->assignments_count }} tugas</span>
-                                    @endif
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1.5 text-xs">
+                                        <span class="font-semibold text-slate-700">{{ $course->materials_count }} materi</span>
+                                        <span class="text-slate-300">&middot;</span>
+                                        @if(auth()->user()->isStaff())
+                                            <span class="font-semibold text-slate-700">{{ $course->students_count }} mhs</span>
+                                        @else
+                                            <span class="font-semibold text-teal-800">{{ $course->assignments_count }} tugas</span>
+                                        @endif
+                                    </div>
                                 </td>
-                                <td class="py-3.5 px-4 text-center">
-                                    <a href="{{ route('courses.show', $course) }}" class="rounded-lg bg-teal-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700 transition">
-                                        {{ auth()->user()->isStaff() ? 'Buka Kelas' : 'Masuk Kelas' }}
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                    <a href="{{ route('courses.show', $course) }}" class="inline-flex items-center justify-center gap-1 rounded-xl bg-teal-800 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 hover:shadow-sm transition whitespace-nowrap">
+                                        <span>{{ auth()->user()->isStaff() ? 'Buka Kelas' : 'Masuk Kelas' }}</span>
+                                        <span aria-hidden="true">&rarr;</span>
                                     </a>
                                 </td>
                             </tr>
