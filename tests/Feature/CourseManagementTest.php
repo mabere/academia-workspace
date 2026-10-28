@@ -161,6 +161,31 @@ class CourseManagementTest extends TestCase
         // Test download
         $dlResponse = $this->actingAs($this->lecturer)->get(route('courses.materials.download', [$course, $material]));
         $dlResponse->assertOk();
+
+        // Test stream (inline preview)
+        $streamResponse = $this->actingAs($this->lecturer)->get(route('courses.materials.stream', [$course, $material]));
+        $streamResponse->assertOk();
+        $this->assertStringContainsString('inline', (string) $streamResponse->headers->get('Content-Disposition'));
+
+        // Test Google Docs Viewer Signed Route for external crawler
+        $this->assertTrue($material->isPowerpoint());
+        $viewerUrl = $material->getGoogleDocsViewerUrl($course);
+        $this->assertNotNull($viewerUrl);
+        $this->assertStringContainsString('docs.google.com/viewer?url=', $viewerUrl);
+
+        // Ekstraksi signed url dari parameter viewer url
+        parse_str(parse_url($viewerUrl, PHP_URL_QUERY), $queryParams);
+        $signedPublicUrl = $queryParams['url'];
+
+        // Request ke publicPreview dengan signature valid (tanpa auth session, crawler google)
+        $publicPreviewResponse = $this->get($signedPublicUrl);
+        $publicPreviewResponse->assertOk();
+        $this->assertStringContainsString('inline', (string) $publicPreviewResponse->headers->get('Content-Disposition'));
+
+        // Request ke publicPreview tanpa signature atau dimanipulasi harus ditolak 403 Forbidden
+        $tamperedUrl = route('courses.materials.public-preview', [$course, $material]);
+        $unauthorizedResponse = $this->get($tamperedUrl);
+        $unauthorizedResponse->assertForbidden();
     }
 
     public function test_lecturer_can_log_course_session(): void
@@ -309,5 +334,13 @@ class CourseManagementTest extends TestCase
         $exportResponse->assertSee('Mengampu Mata Kuliah Applied Linguistics');
         $exportResponse->assertSee('+3.0');
         $exportResponse->assertSee('+2.0');
+
+        // Halaman Output & Evidence Index (/outputs) juga menampilkan artefak course_teaching lengkap dengan type_label & tautan aksi
+        $outputsResponse = $this->actingAs($this->lecturer)->get(route('outputs.index'));
+        $outputsResponse->assertOk();
+        $outputsResponse->assertSee('Mata Kuliah Diampu');
+        $outputsResponse->assertSee('Mengampu Mata Kuliah Academic Writing');
+        $outputsResponse->assertSee(route('outputs.show', ['course_teaching', $course1->id]));
+        $outputsResponse->assertSee(route('outputs.download', ['course_teaching', $course1->id]));
     }
 }

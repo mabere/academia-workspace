@@ -72,6 +72,26 @@ class CourseMaterialController extends Controller
 
         return response()->file($fullPath, [
             'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.$material->file_name.'"',
+            'Accept-Ranges' => 'bytes',
+        ]);
+    }
+
+    public function publicPreview(Request $request, Course $course, CourseMaterial $material): BinaryFileResponse
+    {
+        abort_unless($request->hasValidSignature(), 403, 'Tautan pratinjau kedaluwarsa atau tidak valid.');
+        abort_unless($material->course_id === $course->id, 404);
+
+        if (! $material->file_path || ! Storage::disk('local')->exists($material->file_path)) {
+            abort(404, 'Berkas bahan ajar tidak ditemukan.');
+        }
+
+        $fullPath = Storage::disk('local')->path($material->file_path);
+        $mime = $material->mime_type ?: mime_content_type($fullPath) ?: 'application/octet-stream';
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.$material->file_name.'"',
             'Accept-Ranges' => 'bytes',
         ]);
     }

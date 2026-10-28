@@ -14,7 +14,12 @@
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-xs font-semibold text-slate-700">Periode Semester *</label>
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-slate-700">Periode Semester *</label>
+                    @if(auth()->user()->isSuperadmin())
+                        <a href="{{ route('academic-structure.index') }}" class="text-[11px] font-semibold text-teal-700 hover:underline">+ Kelola Periode</a>
+                    @endif
+                </div>
                 <select name="academic_period_id" required class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     @foreach($academicPeriods as $period)
                         <option value="{{ $period->id }}" @selected($period->is_active)>
@@ -25,10 +30,15 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700">Program Studi *</label>
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-slate-700">Program Studi *</label>
+                    @if(auth()->user()->isSuperadmin())
+                        <a href="{{ route('academic-structure.index') }}" class="text-[11px] font-semibold text-teal-700 hover:underline">+ Kelola Fakultas & Prodi</a>
+                    @endif
+                </div>
                 <select name="study_program_id" required class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     @foreach($studyPrograms as $prodi)
-                        <option value="{{ $prodi->id }}">{{ $prodi->name }} ({{ $prodi->level }})</option>
+                        <option value="{{ $prodi->id }}">{{ $prodi->name }} ({{ $prodi->level }}) — {{ $prodi->faculty?->code }}</option>
                     @endforeach
                 </select>
             </div>

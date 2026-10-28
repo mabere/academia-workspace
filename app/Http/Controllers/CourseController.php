@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCourseRequest;
 use App\Models\AcademicPeriod;
 use App\Models\Course;
 use App\Models\StudyProgram;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,7 +24,7 @@ class CourseController extends Controller
 
         if ($user->isStaff()) {
             $coursesQuery = Course::query()->where('lecturer_id', $user->id);
-            if ($user->role === 'admin' && $request->filled('all_lecturers')) {
+            if (in_array($user->role, ['admin', 'superadmin'], true) && $request->filled('all_lecturers')) {
                 $coursesQuery = Course::query();
             }
         } else {
@@ -34,7 +35,7 @@ class CourseController extends Controller
             $coursesQuery->where('academic_period_id', $selectedPeriodId);
         }
 
-        $courses = $coursesQuery->with(['studyProgram', 'academicPeriod', 'lecturer'])
+        $courses = $coursesQuery->with(['studyProgram.faculty', 'academicPeriod', 'lecturer'])
             ->withCount(['materials', 'sessions', 'students', 'assignments'])
             ->orderBy('code')
             ->get();
@@ -54,7 +55,7 @@ class CourseController extends Controller
         abort_unless(auth()->user()->isStaff(), 403);
 
         $academicPeriods = AcademicPeriod::orderByDesc('start_date')->get();
-        $studyPrograms = StudyProgram::orderBy('name')->get();
+        $studyPrograms = StudyProgram::with('faculty')->orderBy('name')->get();
 
         return view('courses.create', [
             'academicPeriods' => $academicPeriods,
@@ -76,7 +77,7 @@ class CourseController extends Controller
     {
         $user = $request->user();
 
-        // Otorisasi: dosen pengampu, admin, atau mahasiswa terdaftar
+        // Otorisasi: dosen pengampu, admin/superadmin, atau mahasiswa terdaftar
         if (! $user->isStaff()) {
             abort_unless($course->students()->where('student_id', $user->id)->exists(), 403, 'Anda tidak terdaftar pada mata kuliah ini.');
         }
@@ -87,9 +88,22 @@ class CourseController extends Controller
             'lecturer.lecturerProfile',
             'materials.uploader',
             'sessions',
-            'students.student',
+            'students.student.studyProgram',
             'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with(['submissions.student', 'rubric']),
         ]);
+
+        $enrolledStudentIds = $course->students->pluck('student_id')->all();
+
+        $availableStudents = $user->isStaff()
+            ? User::query()
+                ->where('role', 'student')
+                ->whereNotIn('id', $enrolledStudentIds)
+                ->with('studyProgram')
+                ->orderByRaw('CASE WHEN nim IS NULL OR nim = "" THEN 1 ELSE 0 END')
+                ->orderBy('nim')
+                ->orderBy('name')
+                ->get()
+            : collect();
 
         return view('courses.show', [
             'course' => $course,
@@ -97,15 +111,16 @@ class CourseController extends Controller
             'sessions' => $course->sessions,
             'students' => $course->students,
             'assignments' => $course->assignments,
+            'availableStudents' => $availableStudents,
         ]);
     }
 
     public function edit(Course $course): View
     {
-        abort_unless(auth()->user()->isStaff() && ($authId = auth()->id()) === $course->lecturer_id || auth()->user()->role === 'admin', 403);
+        abort_unless(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)), 403);
 
         $academicPeriods = AcademicPeriod::orderByDesc('start_date')->get();
-        $studyPrograms = StudyProgram::orderBy('name')->get();
+        $studyPrograms = StudyProgram::with('faculty')->orderBy('name')->get();
 
         return view('courses.edit', [
             'course' => $course,
@@ -116,7 +131,7 @@ class CourseController extends Controller
 
     public function update(StoreCourseRequest $request, Course $course): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
 
         $course->update($request->validated());
 
@@ -125,7 +140,7 @@ class CourseController extends Controller
 
     public function destroy(Request $request, Course $course): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
 
         $name = $course->name;
         $course->delete();

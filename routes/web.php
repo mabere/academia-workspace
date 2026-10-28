@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcademicStructureController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BkdAssessmentController;
 use App\Http\Controllers\CorpusLabController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\CourseAssignmentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\CourseSessionController;
+use App\Http\Controllers\CourseStudentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpertValidationController;
 use App\Http\Controllers\GuruBahasaController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\LitSynthController;
 use App\Http\Controllers\OutputEvidenceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\StudentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WritingAssignmentController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +30,7 @@ Route::middleware('guest')->group(function () {
 });
 Route::get('/expert-validation/{token}', [ExpertValidationController::class, 'showExpertForm'])->middleware('throttle:20,1')->name('expert-validation.show');
 Route::post('/expert-validation/{token}', [ExpertValidationController::class, 'submitExpertResponse'])->middleware('throttle:5,1')->name('expert-validation.submit');
+Route::get('/courses/{course}/materials/{material}/preview', [CourseMaterialController::class, 'publicPreview'])->name('courses.materials.public-preview');
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -37,6 +41,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/bkd/periods/{period}/export', [BkdAssessmentController::class, 'export'])->name('bkd.export');
     Route::get('/outputs', [OutputEvidenceController::class, 'index'])->name('outputs.index');
     Route::get('/corpuslab/reviews', [CorpusLabController::class, 'reviewQueue'])->name('corpuslab.reviews');
+
+    // Unit Akademik: Fakultas, Program Studi & Periode Semester (Dosen & Admin)
+    Route::get('/academic-structure', [AcademicStructureController::class, 'index'])->name('academic-structure.index');
+    Route::post('/academic-structure/faculties', [AcademicStructureController::class, 'storeFaculty'])->name('academic-structure.faculties.store');
+    Route::put('/academic-structure/faculties/{faculty}', [AcademicStructureController::class, 'updateFaculty'])->name('academic-structure.faculties.update');
+    Route::delete('/academic-structure/faculties/{faculty}', [AcademicStructureController::class, 'destroyFaculty'])->name('academic-structure.faculties.destroy');
+    Route::post('/academic-structure/study-programs', [AcademicStructureController::class, 'storeStudyProgram'])->name('academic-structure.study-programs.store');
+    Route::put('/academic-structure/study-programs/{studyProgram}', [AcademicStructureController::class, 'updateStudyProgram'])->name('academic-structure.study-programs.update');
+    Route::delete('/academic-structure/study-programs/{studyProgram}', [AcademicStructureController::class, 'destroyStudyProgram'])->name('academic-structure.study-programs.destroy');
+    Route::post('/academic-structure/periods', [AcademicStructureController::class, 'storePeriod'])->name('academic-structure.periods.store');
+    Route::patch('/academic-structure/periods/{period}/activate', [AcademicStructureController::class, 'activatePeriod'])->name('academic-structure.periods.activate');
+    Route::delete('/academic-structure/periods/{period}', [AcademicStructureController::class, 'destroyPeriod'])->name('academic-structure.periods.destroy');
+
+    // Direktori & Manajemen Mahasiswa Pribadi Dosen
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+    Route::post('/students/bulk', [StudentController::class, 'bulkStore'])->name('students.bulk-store');
+    Route::get('/students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
+    Route::put('/students/{student}', [StudentController::class, 'update'])->name('students.update');
+    Route::delete('/students/{student}', [StudentController::class, 'destroy'])->name('students.destroy');
 
     // Manajemen Pengguna (Akses Khusus Superadmin)
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -70,6 +94,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/courses/{course}/assignments', [CourseAssignmentController::class, 'store'])->name('courses.assignments.store');
     Route::post('/courses/{course}/assignments/{assignment}/submissions/{submission}/grade', [CourseAssignmentController::class, 'grade'])->name('courses.assignments.grade');
     Route::get('/courses/{course}/grades/print', [CourseAssignmentController::class, 'printGrades'])->name('courses.grades.print');
+
+    Route::post('/courses/{course}/students', [CourseStudentController::class, 'enroll'])->name('courses.students.enroll');
+    Route::patch('/courses/{course}/students/{courseStudent}', [CourseStudentController::class, 'update'])->name('courses.students.update');
+    Route::delete('/courses/{course}/students/{courseStudent}', [CourseStudentController::class, 'unenroll'])->name('courses.students.unenroll');
 
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');

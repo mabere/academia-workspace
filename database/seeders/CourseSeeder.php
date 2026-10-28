@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\CourseSession;
 use App\Models\CourseStudent;
+use App\Models\Faculty;
 use App\Models\StudyProgram;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -28,9 +29,16 @@ class CourseSeeder extends Seeder
                 ['name' => '2026/2027 Ganjil', 'start_date' => '2026-09-01', 'end_date' => '2027-01-31', 'is_active' => true]
             );
 
+        $faculty = Faculty::first() ?? Faculty::create([
+            'name' => 'Fakultas Keguruan dan Ilmu Pendidikan',
+            'code' => 'FKIP',
+            'description' => 'Fakultas penyelenggara pendidikan akademik dan profesi keguruan.',
+        ]);
+
         $studyProgram = StudyProgram::where('code', 'PBI-S1')->first()
             ?? StudyProgram::first()
             ?? StudyProgram::create([
+                'faculty_id' => $faculty->id,
                 'name' => 'Pendidikan Bahasa Inggris',
                 'code' => 'PBI-S1',
                 'level' => 'S1',
@@ -39,20 +47,23 @@ class CourseSeeder extends Seeder
         // Buat atau ambil 5 mahasiswa contoh
         $students = collect();
         $studentData = [
-            ['name' => 'Ahmad Fauzi', 'email' => 'ahmad.fauzi@student.test', 'nim' => '230105001'],
-            ['name' => 'Siti Nurhaliza', 'email' => 'siti.nur@student.test', 'nim' => '230105002'],
-            ['name' => 'Bima Prasetyo', 'email' => 'bima.pra@student.test', 'nim' => '230105003'],
-            ['name' => 'Dewi Anggraini', 'email' => 'dewi.ang@student.test', 'nim' => '230105004'],
-            ['name' => 'Rizky Pratama', 'email' => 'rizky.pra@student.test', 'nim' => '230105005'],
+            ['name' => 'Ahmad Fauzi', 'email' => 'ahmad.fauzi@student.test', 'nim' => '230105001', 'cohort_year' => 2023],
+            ['name' => 'Siti Nurhaliza', 'email' => 'siti.nur@student.test', 'nim' => '230105002', 'cohort_year' => 2023],
+            ['name' => 'Bima Prasetyo', 'email' => 'bima.pra@student.test', 'nim' => '230105003', 'cohort_year' => 2023],
+            ['name' => 'Dewi Anggraini', 'email' => 'dewi.ang@student.test', 'nim' => '230105004', 'cohort_year' => 2023],
+            ['name' => 'Rizky Pratama', 'email' => 'rizky.pra@student.test', 'nim' => '230105005', 'cohort_year' => 2023],
         ];
 
         foreach ($studentData as $data) {
-            $students->push(User::firstOrCreate(
+            $students->push(User::updateOrCreate(
                 ['email' => $data['email']],
                 [
                     'name' => $data['name'],
                     'password' => bcrypt('password'),
                     'role' => 'student',
+                    'nim' => $data['nim'],
+                    'study_program_id' => $studyProgram->id,
+                    'cohort_year' => $data['cohort_year'],
                 ]
             ));
         }

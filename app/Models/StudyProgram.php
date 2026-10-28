@@ -24,4 +24,9 @@ class StudyProgram extends Model
     {
         return $this->hasMany(Course::class);
     }
+
+    public function students(): HasMany
+    {
+        return $this->hasMany(User::class, 'study_program_id')->where('role', 'student');
+    }
 }

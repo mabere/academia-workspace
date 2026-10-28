@@ -67,23 +67,34 @@ class OutputEvidenceController extends Controller
         $items = collect();
 
         if ($this->includeType($data, 'course_teaching') && empty($data['project_id'])) {
-            $coursesQuery = Course::query()->where('lecturer_id', $request->user()->id)->with('studyProgram');
+            $coursesQuery = Course::query()
+                ->where('lecturer_id', $request->user()->id)
+                ->with('studyProgram')
+                ->withCount('sessions');
             if ($selectedPeriodId) {
                 $coursesQuery->where('academic_period_id', $selectedPeriodId);
             }
-            $items = $items->concat($coursesQuery->latest()->get()->map(fn ($record) => [
-                'type' => 'course_teaching',
-                'id' => $record->id,
-                'project_id' => 0,
-                'project_name' => $record->studyProgram->name ?? 'Prodi',
-                'title' => 'Mengampu Mata Kuliah '.$record->name.' ('.$record->code.' · '.$record->class_group.')',
-                'description' => $record->credit_hours.' SKS · '.$record->scheduleLabel().' · '.$record->sessions()->count().' sesi jurnal tercatat',
-                'status' => $record->sessions()->count() >= 1 ? 'verified' : 'draft',
-                'created_at' => $record->updated_at,
-                'sks' => (float) $record->credit_hours,
-                'pillar' => 'teaching',
-                'pillar_label' => 'Pendidikan',
-            ]));
+            $items = $items->concat($coursesQuery->latest()->get()->map(function ($record) {
+                $status = $record->sessions_count >= 1 ? 'verified' : 'draft';
+
+                return [
+                    'type' => 'course_teaching',
+                    'type_label' => self::TYPES['course_teaching'],
+                    'id' => $record->id,
+                    'project_id' => 0,
+                    'project_name' => $record->studyProgram->name ?? 'Prodi',
+                    'title' => 'Mengampu Mata Kuliah '.$record->name.' ('.$record->code.' · '.$record->class_group.')',
+                    'description' => $record->credit_hours.' SKS · '.$record->scheduleLabel().' · '.$record->sessions_count.' sesi jurnal tercatat',
+                    'status' => $status,
+                    'status_label' => self::STATUSES[$status] ?? $status,
+                    'created_at' => $record->updated_at,
+                    'sks' => (float) $record->credit_hours,
+                    'pillar' => 'teaching',
+                    'pillar_label' => 'Pendidikan',
+                    'show_url' => route('outputs.show', ['course_teaching', $record->id]),
+                    'download_url' => route('outputs.download', ['course_teaching', $record->id]),
+                ];
+            }));
         }
 
         if ($this->includeType($data, 'literature_source')) {

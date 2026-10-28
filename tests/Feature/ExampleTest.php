@@ -61,4 +61,68 @@ class ExampleTest extends TestCase
         $response->assertSee('id="sidebar-toggle-mobile"', false);
         $response->assertDontSee('guest-shell');
     }
+
+    public function test_login_page_renders_professional_form_with_security_and_registration_links(): void
+    {
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertSee('Masuk ke Ruang Kerja');
+        $response->assertSee('Sistem Informasi Kinerja Dosen');
+        $response->assertSee('Alamat Email');
+        $response->assertSee('Kata Sandi');
+        $response->assertSee('Ingat saya di perangkat ini');
+        $response->assertSee('Daftar Akun Baru');
+        $response->assertSee(route('register'));
+    }
+
+    public function test_register_page_renders_role_options_and_lecturer_guidance(): void
+    {
+        $response = $this->get(route('register'));
+
+        $response->assertOk();
+        $response->assertSee('Pendaftaran Akun Baru');
+        $response->assertSee('Informasi Akun Dosen / Tenaga Pendidik:');
+        $response->assertSee('Mahasiswa (Akses Tugas, Materi & Presensi)', false);
+        $response->assertSee('Pengguna Umum / Peneliti Tamu');
+        $response->assertSee('Minimal 10 karakter');
+        $response->assertSee('Sudah memiliki akun?');
+        $response->assertSee(route('login'));
+    }
+
+    public function test_user_can_authenticate_via_login_form(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'dosen@universitas.ac.id',
+            'password' => bcrypt('password12345'),
+            'is_active' => true,
+        ]);
+
+        $response = $this->post(route('login'), [
+            'email' => 'dosen@universitas.ac.id',
+            'password' => 'password12345',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_user_can_register_via_registration_form(): void
+    {
+        $response = $this->post(route('register'), [
+            'name' => 'Fajar Pratama',
+            'email' => 'fajar@mahasiswa.ac.id',
+            'role' => 'student',
+            'password' => 'KatasandiKuat123#',
+            'password_confirmation' => 'KatasandiKuat123#',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertDatabaseHas('users', [
+            'name' => 'Fajar Pratama',
+            'email' => 'fajar@mahasiswa.ac.id',
+            'role' => 'student',
+        ]);
+        $this->assertAuthenticated();
+    }
 }

@@ -77,13 +77,30 @@ textarea {
     resize: vertical;
 }
 
-.guest-shell .workspace-main,
-.guest-shell .workspace-footer {
+/* Support icon padding overrides when input controls contain leading/trailing icons */
+input.has-icon-left,
+input.pl-10,
+input.pl-11 {
+    padding-left: 2.75rem !important;
+}
+
+input.has-icon-right,
+input.pr-10,
+input.pr-11 {
+    padding-right: 2.75rem !important;
+}
+
+.guest-shell .workspace-main {
     grid-column: 1 / -1;
+    flex: 1 0 auto;
+    padding-bottom: 3.5rem;
 }
 
 .guest-shell .workspace-footer {
+    grid-column: 1 / -1;
+    position: relative;
     left: 0;
+    width: 100%;
 }
 
 .sidebar-link {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\URL;
 
 class CourseMaterial extends Model
 {
@@ -57,6 +58,53 @@ class CourseMaterial extends Model
     public function isDocument(): bool
     {
         return $this->material_type === 'document';
+    }
+
+    public function isPdf(): bool
+    {
+        $name = strtolower($this->file_name ?? '');
+
+        return $this->mime_type === 'application/pdf'
+            || str_ends_with($name, '.pdf');
+    }
+
+    public function isWordDocument(): bool
+    {
+        $name = strtolower($this->file_name ?? '');
+
+        return str_ends_with($name, '.docx')
+            || str_ends_with($name, '.doc')
+            || in_array($this->mime_type, [
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/msword',
+            ], true);
+    }
+
+    public function isPowerpoint(): bool
+    {
+        $name = strtolower($this->file_name ?? '');
+
+        return str_ends_with($name, '.pptx')
+            || str_ends_with($name, '.ppt')
+            || in_array($this->mime_type, [
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/vnd.ms-powerpoint',
+            ], true);
+    }
+
+    public function getGoogleDocsViewerUrl(Course $course): ?string
+    {
+        if (! $this->file_path) {
+            return null;
+        }
+
+        $signedUrl = URL::temporarySignedRoute(
+            'courses.materials.public-preview',
+            now()->addHours(4),
+            ['course' => $course->id, 'material' => $this->id]
+        );
+
+        return 'https://docs.google.com/viewer?url='.urlencode($signedUrl).'&embedded=true';
     }
 
     public function isLink(): bool

@@ -87,7 +87,19 @@
     </div>
 
     {{-- Navigasi Tab Interaktif --}}
-    <div x-data="{ tab: 'materials' }" class="space-y-6">
+    <div x-data="{
+        tab: '{{ in_array(request('tab'), ['materials', 'sessions', 'assignments', 'students'], true) ? request('tab') : 'materials' }}',
+        docModalOpen: false,
+        docModalTitle: '',
+        docModalUrl: '',
+        docDownloadUrl: '',
+        openDocPreview(title, viewerUrl, dlUrl) {
+            this.docModalTitle = title;
+            this.docModalUrl = viewerUrl;
+            this.docDownloadUrl = dlUrl;
+            this.docModalOpen = true;
+        }
+    }" class="space-y-6">
         <div class="border-b border-slate-200">
             <nav class="-mb-px flex gap-6 text-sm font-semibold">
                 <button type="button" @click="tab = 'materials'" :class="tab === 'materials' ? 'border-teal-700 text-teal-800 border-b-2' : 'border-transparent text-slate-500 hover:text-slate-800'" class="pb-3 px-1 transition flex items-center gap-2">
@@ -257,8 +269,37 @@
                                     @endif
                                 </div>
 
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
                                     @if($material->file_path)
+                                        @if($material->isPdf())
+                                            <a href="{{ route('courses.materials.stream', [$course, $material]) }}" target="_blank"
+                                                class="inline-flex items-center gap-1.5 rounded-lg bg-teal-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                <span>Buka / Baca PDF</span>
+                                            </a>
+                                        @elseif($material->isWordDocument())
+                                            <button type="button"
+                                                @click="openDocPreview('{{ addslashes($material->title) }}', '{{ $material->getGoogleDocsViewerUrl($course) }}', '{{ route('courses.materials.download', [$course, $material]) }}')"
+                                                class="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-800 transition">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <span>Lihat Dokumen (Word)</span>
+                                            </button>
+                                        @elseif($material->isPowerpoint())
+                                            <button type="button"
+                                                @click="openDocPreview('{{ addslashes($material->title) }}', '{{ $material->getGoogleDocsViewerUrl($course) }}', '{{ route('courses.materials.download', [$course, $material]) }}')"
+                                                class="inline-flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-800 transition">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                                </svg>
+                                                <span>Lihat Slide (PPT)</span>
+                                            </button>
+                                        @endif
+
                                         <a href="{{ route('courses.materials.download', [$course, $material]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
                                             <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -320,6 +361,57 @@
                     @endforeach
                 </div>
             @endif
+
+            {{-- MODAL PRATINJAU DOKUMEN GOOGLE DOCS --}}
+            <div x-show="docModalOpen"
+                x-cloak
+                style="display: none;"
+                class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs"
+                @keydown.escape.window="docModalOpen = false">
+                <div class="relative w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+                    @click.away="docModalOpen = false">
+                    {{-- Header Modal --}}
+                    <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="rounded-lg bg-blue-100 p-1.5 text-blue-800">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </span>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-slate-900 truncate" x-text="docModalTitle"></h3>
+                                <p class="text-[11px] text-slate-500">Pratinjau Dokumen Online (Google Docs Viewer)</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a :href="docModalUrl" target="_blank"
+                                class="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                                <span>Buka Tab Penuh &rarr;</span>
+                            </a>
+                            <a :href="docDownloadUrl"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition">
+                                <span>Unduh Berkas</span>
+                            </a>
+                            <button type="button" @click="docModalOpen = false"
+                                class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Body Modal --}}
+                    <div class="flex-1 overflow-hidden p-3 bg-slate-100 flex flex-col">
+                        @if(app()->environment('local') || str_contains(request()->getHost(), '.test') || str_contains(request()->getHost(), 'localhost'))
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-2">
+                                <strong>Catatan Pengujian Lokal:</strong> Google Docs Viewer membutuhkan domain yang dapat diakses publik dari internet (seperti pada VPS production <code>https://academia-workspace.cloud</code>). Jika pratinjau Google kosong di localhost, silakan klik tombol <strong>Unduh Berkas</strong> di kanan atas.
+                            </div>
+                        @endif
+                        <iframe :src="docModalUrl" class="w-full flex-1 min-h-[60vh] max-h-[72vh] rounded-xl border border-slate-200 bg-white shadow-inner" frameborder="0"></iframe>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- TAB 2: JURNAL PERKULIAHAN (16 PERTEMUAN) --}}
@@ -645,12 +737,164 @@
                     @endforeach
                 </div>
             @endif
+
+            {{-- MODAL PRATINJAU DOKUMEN GOOGLE DOCS --}}
+            <div x-show="docModalOpen"
+                x-cloak
+                style="display: none;"
+                class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs"
+                @keydown.escape.window="docModalOpen = false">
+                <div class="relative w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+                    @click.away="docModalOpen = false">
+                    {{-- Header Modal --}}
+                    <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="rounded-lg bg-blue-100 p-1.5 text-blue-800">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </span>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-slate-900 truncate" x-text="docModalTitle"></h3>
+                                <p class="text-[11px] text-slate-500">Pratinjau Dokumen Online (Google Docs Viewer)</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a :href="docModalUrl" target="_blank"
+                                class="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                                <span>Buka Tab Penuh &rarr;</span>
+                            </a>
+                            <a :href="docDownloadUrl"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition">
+                                <span>Unduh Berkas</span>
+                            </a>
+                            <button type="button" @click="docModalOpen = false"
+                                class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Body Modal --}}
+                    <div class="flex-1 overflow-hidden p-3 bg-slate-100 flex flex-col">
+                        @if(app()->environment('local') || str_contains(request()->getHost(), '.test') || str_contains(request()->getHost(), 'localhost'))
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-2">
+                                <strong>Catatan Pengujian Lokal:</strong> Google Docs Viewer membutuhkan domain yang dapat diakses publik dari internet (seperti pada VPS production <code>https://academia-workspace.cloud</code>). Jika pratinjau Google kosong di localhost, silakan klik tombol <strong>Unduh Berkas</strong> di kanan atas.
+                            </div>
+                        @endif
+                        <iframe :src="docModalUrl" class="w-full flex-1 min-h-[60vh] max-h-[72vh] rounded-xl border border-slate-200 bg-white shadow-inner" frameborder="0"></iframe>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- TAB 4: PESERTA KELAS (MAHASISWA) --}}
         <div x-show="tab === 'students'" class="space-y-6">
+            @php
+                $canManageStudents = auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true));
+            @endphp
+
+            @if($canManageStudents)
+                <div class="rounded-2xl border border-teal-200 bg-teal-50/40 p-5 shadow-sm" x-data="{ enrollMode: '{{ ($availableStudents ?? collect())->isNotEmpty() ? 'directory' : 'paste' }}' }">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-teal-200/70 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-teal-950">Assign / Tambah Mahasiswa ke Kelas Ini</h2>
+                            <p class="text-xs text-teal-800">Pilih dari direktori mahasiswa atau tempel daftar NIM & Nama langsung dari absen kelas.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="enrollMode = 'directory'"
+                                :class="enrollMode === 'directory' ? 'bg-teal-800 text-white' : 'bg-white text-slate-700 border border-slate-300'"
+                                class="rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                                Pilih dari Direktori ({{ ($availableStudents ?? collect())->count() }})
+                            </button>
+                            <button type="button" @click="enrollMode = 'paste'"
+                                :class="enrollMode === 'paste' ? 'bg-teal-800 text-white' : 'bg-white text-slate-700 border border-slate-300'"
+                                class="rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                                + Input / Paste Mahasiswa Baru
+                            </button>
+                            <a href="{{ route('students.index', ['course_id' => $course->id]) }}"
+                                class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                                Direktori Lengkap &rarr;
+                            </a>
+                        </div>
+                    </div>
+
+                    <form method="post" action="{{ route('courses.students.enroll', $course) }}" class="mt-4 space-y-4">
+                        @csrf
+
+                        {{-- Mode 1: Pilih dari Direktori Mahasiswa --}}
+                        <div x-show="enrollMode === 'directory'" class="space-y-3">
+                            @if(($availableStudents ?? collect())->isEmpty())
+                                <div class="rounded-xl border border-slate-200 bg-white p-4 text-center text-xs text-slate-500">
+                                    Seluruh mahasiswa di direktori sudah terdaftar di kelas ini, atau direktori masih kosong. Gunakan tab <strong>+ Input / Paste Mahasiswa Baru</strong> di samping.
+                                </div>
+                            @else
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-semibold text-slate-700">Centang mahasiswa yang memprogram mata kuliah ini:</span>
+                                    <button type="button"
+                                        onclick="document.querySelectorAll('.dir-student-checkbox').forEach(cb => cb.checked = true)"
+                                        class="font-semibold text-teal-800 hover:underline">
+                                        Pilih Semua
+                                    </button>
+                                </div>
+                                <div class="max-h-60 overflow-y-auto grid gap-2 sm:grid-cols-2 lg:grid-cols-3 rounded-xl border border-slate-200 bg-white p-3">
+                                    @foreach($availableStudents as $avail)
+                                        <label class="flex items-start gap-2.5 rounded-lg border border-slate-100 p-2 text-xs cursor-pointer hover:bg-teal-50/50 hover:border-teal-300 transition">
+                                            <input type="checkbox" name="student_ids[]" value="{{ $avail->id }}"
+                                                class="dir-student-checkbox mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+                                            <span class="min-w-0">
+                                                <span class="block font-bold text-slate-900 truncate">{{ $avail->name }}</span>
+                                                <span class="block font-mono text-[11px] text-slate-500">
+                                                    NIM: {{ $avail->nim ?: '-' }}
+                                                    @if($avail->studyProgram)
+                                                        &middot; {{ $avail->studyProgram->code }}
+                                                    @endif
+                                                    @if($avail->cohort_year)
+                                                        ({{ $avail->cohort_year }})
+                                                    @endif
+                                                </span>
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- Mode 2: Input / Paste Cepat --}}
+                        <div x-show="enrollMode === 'paste'" class="space-y-3">
+                            <div class="grid gap-3 sm:grid-cols-4">
+                                <div class="sm:col-span-3">
+                                    <label class="block text-xs font-bold text-slate-800">
+                                        Daftar Mahasiswa Baru / Tambahan (<code class="rounded bg-white px-1.5 py-0.5 text-teal-900">NIM ; Nama Lengkap ; Email(opsional)</code>)
+                                    </label>
+                                    <textarea name="raw_list" rows="4"
+                                        placeholder="240105010 ; Andi Saputra&#10;240105011 ; Nadia Putri ; nadia@student.ac.id"
+                                        class="mt-1 w-full rounded-xl border-slate-300 bg-white font-mono text-xs"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-800">Tahun Angkatan</label>
+                                    <input type="number" name="cohort_year" min="2000" max="2099" value="{{ now()->year }}"
+                                        class="mt-1 w-full rounded-lg border-slate-300 bg-white text-xs">
+                                    <p class="mt-2 text-[11px] text-slate-600 leading-relaxed">
+                                        Mahasiswa otomatis terdaftar ke Prodi <strong>{{ $course->studyProgram->name }}</strong> dan di-assign ke seluruh tugas kelas ini.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-900 transition">
+                                Assign Mahasiswa ke Kelas
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            @endif
+
             <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Daftar Mahasiswa Terdaftar ({{ $students->count() }} Mahasiswa)</span>
                     <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
                         Cetak Rekap Nilai Sah A4 &rarr;
@@ -660,36 +904,74 @@
                 @if($students->isEmpty())
                     <div class="p-8 text-center text-sm text-slate-500">Belum ada mahasiswa yang terdaftar di kelas ini.</div>
                 @else
-                    <table class="w-full text-left text-xs text-slate-700">
-                        <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
-                            <tr>
-                                <th class="py-3 px-4 w-12 text-center">No</th>
-                                <th class="py-3 px-4 w-32">NIM</th>
-                                <th class="py-3 px-4">Nama Mahasiswa</th>
-                                <th class="py-3 px-4">Email</th>
-                                <th class="py-3 px-4 w-28 text-center">Tingkat Kehadiran</th>
-                                <th class="py-3 px-4 w-24 text-center">Nilai Akhir</th>
-                                <th class="py-3 px-4 w-20 text-center">Huruf Mutu</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @foreach($students as $idx => $cs)
-                                <tr class="hover:bg-slate-50/70 transition">
-                                    <td class="py-3 px-4 text-center text-slate-400">{{ $idx + 1 }}</td>
-                                    <td class="py-3 px-4 font-mono font-bold text-slate-700">{{ $cs->nim ?: '-' }}</td>
-                                    <td class="py-3 px-4 font-bold text-slate-900">{{ $cs->student->name }}</td>
-                                    <td class="py-3 px-4 text-slate-500">{{ $cs->student->email }}</td>
-                                    <td class="py-3 px-4 text-center font-semibold text-slate-700">{{ number_format($cs->attendance_rate, 0) }}%</td>
-                                    <td class="py-3 px-4 text-center font-bold text-teal-800">{{ $cs->final_grade ? number_format($cs->final_grade, 1) : '-' }}</td>
-                                    <td class="py-3 px-4 text-center">
-                                        <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
-                                            {{ $cs->letter_grade ?: '-' }}
-                                        </span>
-                                    </td>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
+                                <tr>
+                                    <th class="py-3 px-4 w-12 text-center">No</th>
+                                    <th class="py-3 px-4 w-36">NIM</th>
+                                    <th class="py-3 px-4">Nama & Prodi Mahasiswa</th>
+                                    <th class="py-3 px-4 w-44 text-center">Kehadiran (%)</th>
+                                    <th class="py-3 px-4 w-24 text-center">Nilai Akhir</th>
+                                    <th class="py-3 px-4 w-20 text-center">Huruf Mutu</th>
+                                    @if($canManageStudents)
+                                        <th class="py-3 px-4 w-24 text-right">Aksi</th>
+                                    @endif
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($students as $idx => $cs)
+                                    <tr class="hover:bg-slate-50/70 transition">
+                                        <td class="py-3 px-4 text-center text-slate-400">{{ $idx + 1 }}</td>
+                                        <td class="py-3 px-4 font-mono font-bold text-slate-800">{{ $cs->nim ?: ($cs->student->nim ?: '-') }}</td>
+                                        <td class="py-3 px-4">
+                                            <div class="font-bold text-slate-900">{{ $cs->student->name }}</div>
+                                            <div class="text-[11px] text-slate-500">
+                                                {{ $cs->student->email }}
+                                                @if($cs->student->studyProgram)
+                                                    &middot; <span class="font-semibold text-teal-800">{{ $cs->student->studyProgram->code }}</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            @if($canManageStudents)
+                                                <form method="post" action="{{ route('courses.students.update', [$course, $cs]) }}" class="inline-flex items-center justify-center gap-1.5">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="nim" value="{{ $cs->nim ?: $cs->student->nim }}">
+                                                    <input type="number" name="attendance_rate" min="0" max="100" step="1" value="{{ number_format($cs->attendance_rate, 0, '.', '') }}"
+                                                        class="w-16 rounded border-slate-300 py-1 px-2 text-center text-xs font-bold">
+                                                    <button type="submit" class="rounded bg-slate-800 px-2 py-1 text-[10px] font-bold text-white hover:bg-slate-700 transition" title="Simpan kehadiran">
+                                                        OK
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="font-semibold text-slate-700">{{ number_format($cs->attendance_rate, 0) }}%</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4 text-center font-bold text-teal-800">{{ $cs->final_grade ? number_format($cs->final_grade, 1) : '-' }}</td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
+                                                {{ $cs->letter_grade ?: '-' }}
+                                            </span>
+                                        </td>
+                                        @if($canManageStudents)
+                                            <td class="py-3 px-4 text-right">
+                                                <form method="post" action="{{ route('courses.students.unenroll', [$course, $cs]) }}"
+                                                    onsubmit="return confirm('Keluarkan {{ $cs->student->name }} dari kelas ini?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="rounded-lg border border-red-200 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 transition">
+                                                        Keluarkan
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
             </div>
         </div>
