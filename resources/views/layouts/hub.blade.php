@@ -153,15 +153,17 @@
                                 </svg><span data-sidebar-label>Output & Evidence</span>
                             </a>
                         @endif
-                        <a href="{{ route('dashboard') }}#modules-heading" title="Modul" class="sidebar-link">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
-                                stroke="currentColor" stroke-width="1.8">
-                                <rect x="4" y="4" width="6" height="6" rx="1" />
-                                <rect x="14" y="4" width="6" height="6" rx="1" />
-                                <rect x="4" y="14" width="6" height="6" rx="1" />
-                                <rect x="14" y="14" width="6" height="6" rx="1" />
-                            </svg><span data-sidebar-label>Modul</span>
-                        </a>
+                        @if (auth()->user()->isStaff())
+                            <a href="{{ route('dashboard') }}#modules-heading" title="Modul" class="sidebar-link">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <rect x="4" y="4" width="6" height="6" rx="1" />
+                                    <rect x="14" y="4" width="6" height="6" rx="1" />
+                                    <rect x="4" y="14" width="6" height="6" rx="1" />
+                                    <rect x="14" y="14" width="6" height="6" rx="1" />
+                                </svg><span data-sidebar-label>Modul</span>
+                            </a>
+                        @endif
                         @if (auth()->user()->role === 'superadmin')
                             <a href="{{ route('academic-structure.index') }}"
                                 @if (request()->routeIs('academic-structure.*')) aria-current="page" @endif title="Fakultas & Prodi"

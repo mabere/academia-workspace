@@ -46,12 +46,14 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('courses.sessions.print', $course) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
-                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    Cetak Jurnal Perkuliahan
-                </a>
+                @if(auth()->user()->isStaff())
+                    <a href="{{ route('courses.sessions.print', $course) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+                        <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Cetak Jurnal Perkuliahan
+                    </a>
+                @endif
 
                 @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
                     <a href="{{ route('courses.edit', $course) }}" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
@@ -122,7 +124,7 @@
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
-                    Tugas & Penilaian
+                    {{ auth()->user()->isStaff() ? 'Tugas & Penilaian' : 'Tugas Saya' }}
                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ $assignments->count() }}</span>
                 </button>
 
@@ -130,7 +132,7 @@
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    Peserta Kelas
+                    {{ auth()->user()->isStaff() ? 'Peserta Kelas' : 'Teman Sekelas' }}
                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ $students->count() }}</span>
                 </button>
             </nav>
@@ -557,17 +559,25 @@
         <div x-show="tab === 'assignments'" class="space-y-6">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-base font-bold text-slate-900">Penugasan Perkuliahan & Evaluasi Nilai</h2>
-                    <p class="text-xs text-slate-500">Tugas penulisan akademik, submisi draf mahasiswa, penilaian berkriteria, dan rekapitulasi nilai.</p>
+                    <h2 class="text-base font-bold text-slate-900">
+                        {{ auth()->user()->isStaff() ? 'Penugasan Perkuliahan & Evaluasi Nilai' : 'Tugas Perkuliahan Saya' }}
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        {{ auth()->user()->isStaff()
+                            ? 'Tugas penulisan akademik, submisi draf mahasiswa, penilaian berkriteria, dan rekapitulasi nilai.'
+                            : 'Kerjakan tugas akademik, kumpulkan draf via WriteWise AI, dan pantau umpan balik serta nilai dari dosen pengampu.' }}
+                    </p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
-                        <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        Cetak Rekap Nilai Sah A4
-                    </a>
-                </div>
+                @if(auth()->user()->isStaff())
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            Cetak Rekap Nilai Sah A4
+                        </a>
+                    </div>
+                @endif
             </div>
 
             {{-- Form Terbitkan Tugas Baru (Dosen Pengampu) --}}
@@ -671,68 +681,109 @@
 
                             <p class="mt-3 text-xs text-slate-600 leading-relaxed">{{ $assignment->instructions }}</p>
 
-                            {{-- Submisi Mahasiswa & Input Penilaian Cepat --}}
-                            <div class="mt-5 border-t border-slate-100 pt-4">
-                                <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">
-                                        Submisi Mahasiswa Kelas ({{ $assignment->submissions->count() }}/{{ $students->count() }})
-                                    </h4>
-                                </div>
+                            @if(auth()->user()->isStaff())
+                                {{-- Submisi Mahasiswa & Input Penilaian Cepat (Khusus Dosen/Staf) --}}
+                                <div class="mt-5 border-t border-slate-100 pt-4">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                            Submisi Mahasiswa Kelas ({{ $assignment->submissions->count() }}/{{ $students->count() }})
+                                        </h4>
+                                    </div>
 
-                                @if($assignment->submissions->isEmpty())
-                                    <p class="text-xs text-slate-400 italic">Belum ada mahasiswa yang mengumpulkan draf tugas ini.</p>
-                                @else
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full text-left text-xs text-slate-700">
-                                            <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
-                                                <tr>
-                                                    <th class="py-2 px-3">Mahasiswa</th>
-                                                    <th class="py-2 px-3 w-28 text-center">Status</th>
-                                                    <th class="py-2 px-3 w-24 text-center">Nilai (0-100)</th>
-                                                    <th class="py-2 px-3 w-20 text-center">Mutu</th>
-                                                    @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
-                                                        <th class="py-2 px-3">Form Penilaian Dosen</th>
-                                                    @endif
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-100">
-                                                @foreach($assignment->submissions as $sub)
-                                                    <tr class="hover:bg-slate-50/70 transition">
-                                                        <td class="py-2.5 px-3">
-                                                            <div class="font-bold text-slate-900">{{ $sub->student->name }}</div>
-                                                            <div class="text-[11px] text-slate-400">{{ $sub->student->email }}</div>
-                                                        </td>
-                                                        <td class="py-2.5 px-3 text-center">
-                                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold
-                                                                {{ $sub->status === 'graded' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                                                {{ $sub->status === 'graded' ? 'Dinilai' : 'Draf/Terkirim' }}
-                                                            </span>
-                                                        </td>
-                                                        <td class="py-2.5 px-3 text-center font-bold text-teal-800 text-sm">
-                                                            {{ $sub->score !== null ? number_format($sub->score, 1) : '-' }}
-                                                        </td>
-                                                        <td class="py-2.5 px-3 text-center font-bold text-slate-700">
-                                                            {{ $sub->letterGrade() }}
-                                                        </td>
-                                                        @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
-                                                            <td class="py-2.5 px-3">
-                                                                <form method="post" action="{{ route('courses.assignments.grade', [$course, $assignment, $sub]) }}" class="flex items-center gap-2">
-                                                                    @csrf
-                                                                    <input type="number" step="0.1" min="0" max="100" name="score" required value="{{ $sub->score }}" placeholder="Nilai" class="w-20 rounded border-slate-300 py-1 text-xs text-center font-bold">
-                                                                    <input type="text" name="feedback_notes" placeholder="Catatan evaluasi singkat..." class="w-48 sm:w-64 rounded border-slate-300 py-1 text-xs">
-                                                                    <button type="submit" class="rounded bg-teal-800 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700 transition">
-                                                                        Simpan
-                                                                    </button>
-                                                                </form>
-                                                            </td>
+                                    @if($assignment->submissions->isEmpty())
+                                        <p class="text-xs text-slate-400 italic">Belum ada mahasiswa yang mengumpulkan draf tugas ini.</p>
+                                    @else
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-left text-xs text-slate-700">
+                                                <thead class="border-b border-slate-200 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
+                                                    <tr>
+                                                        <th class="py-2 px-3">Mahasiswa</th>
+                                                        <th class="py-2 px-3 w-28 text-center">Status</th>
+                                                        <th class="py-2 px-3 w-24 text-center">Nilai (0-100)</th>
+                                                        <th class="py-2 px-3 w-20 text-center">Mutu</th>
+                                                        @if(auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin')
+                                                            <th class="py-2 px-3">Form Penilaian Dosen</th>
                                                         @endif
                                                     </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    @foreach($assignment->submissions as $sub)
+                                                        <tr class="hover:bg-slate-50/70 transition">
+                                                            <td class="py-2.5 px-3">
+                                                                <div class="font-bold text-slate-900">{{ $sub->student->name }}</div>
+                                                                <div class="text-[11px] text-slate-400">{{ $sub->student->email }}</div>
+                                                            </td>
+                                                            <td class="py-2.5 px-3 text-center">
+                                                                <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold
+                                                                    {{ $sub->status === 'graded' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                                    {{ $sub->status === 'graded' ? 'Dinilai' : 'Draf/Terkirim' }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-2.5 px-3 text-center font-bold text-teal-800 text-sm">
+                                                                {{ $sub->score !== null ? number_format($sub->score, 1) : '-' }}
+                                                            </td>
+                                                            <td class="py-2.5 px-3 text-center font-bold text-slate-700">
+                                                                {{ $sub->letterGrade() }}
+                                                            </td>
+                                                            @if(auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin')
+                                                                <td class="py-2.5 px-3">
+                                                                    <form method="post" action="{{ route('courses.assignments.grade', [$course, $assignment, $sub]) }}" class="flex items-center gap-2">
+                                                                        @csrf
+                                                                        <input type="number" step="0.1" min="0" max="100" name="score" required value="{{ $sub->score }}" placeholder="Nilai" class="w-20 rounded border-slate-300 py-1 text-xs text-center font-bold">
+                                                                        <input type="text" name="feedback_notes" placeholder="Catatan evaluasi singkat..." class="w-48 sm:w-64 rounded border-slate-300 py-1 text-xs">
+                                                                        <button type="submit" class="rounded bg-teal-800 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700 transition">
+                                                                            Simpan
+                                                                        </button>
+                                                                    </form>
+                                                                </td>
+                                                            @endif
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+                            @else
+                                {{-- Status Tugas Saya (Khusus Mahasiswa) --}}
+                                @php
+                                    $mySub = $assignment->submissions->firstWhere('student_id', auth()->id());
+                                @endphp
+                                <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status Pengumpulan Saya</span>
+                                            <div class="mt-1 flex flex-wrap items-center gap-2">
+                                                @if($mySub)
+                                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold
+                                                        {{ $mySub->status === 'graded' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                        {{ $mySub->status === 'graded' ? 'Sudah Dinilai Dosen' : 'Draf Terkumpul' }}
+                                                    </span>
+                                                    @if($mySub->score !== null)
+                                                        <span class="font-bold text-teal-800 text-sm">
+                                                            Nilai: {{ number_format($mySub->score, 1) }} (Mutu: {{ $mySub->letterGrade() }})
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs text-slate-500 italic">Sedang dalam proses evaluasi</span>
+                                                    @endif
+                                                @else
+                                                    <span class="inline-flex rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                                                        Belum Mengumpulkan Draf
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <a href="{{ route('assignments.show', $assignment) }}" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-800 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-teal-700 transition">
+                                            @if($mySub)
+                                                <span>Buka Draf & Umpan Balik di WriteWise &rarr;</span>
+                                            @else
+                                                <span>Kerjakan Tugas di WriteWise &rarr;</span>
+                                            @endif
+                                        </a>
                                     </div>
-                                @endif
-                            </div>
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -893,12 +944,48 @@
                 </div>
             @endif
 
+            @php
+                $myEnrollment = $students->firstWhere('student_id', auth()->id());
+            @endphp
+
+            @if(!auth()->user()->isStaff() && $myEnrollment)
+                <div class="rounded-2xl border border-teal-200 bg-teal-50/60 p-5 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-teal-800">Rekap Capaian Akademik Saya</span>
+                            <h3 class="text-sm font-bold text-slate-900 mt-0.5">{{ auth()->user()->name }} ({{ auth()->user()->nim ?: $myEnrollment->nim ?: '-' }})</h3>
+                            <p class="text-xs text-slate-500">Nilai akhir dan kehadiran dihitung berdasarkan jurnal perkuliahan dan tugas kelas ini.</p>
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <div class="text-center">
+                                <span class="block text-[10px] font-bold uppercase text-slate-500">Presensi Kehadiran</span>
+                                <span class="text-lg font-bold text-slate-900">{{ number_format($myEnrollment->attendance_rate, 0) }}%</span>
+                            </div>
+                            <div class="text-center border-l border-teal-200 pl-6">
+                                <span class="block text-[10px] font-bold uppercase text-slate-500">Nilai Akhir</span>
+                                <span class="text-lg font-bold text-teal-800">{{ $myEnrollment->final_grade ? number_format($myEnrollment->final_grade, 1) : '-' }}</span>
+                            </div>
+                            <div class="text-center border-l border-teal-200 pl-6">
+                                <span class="block text-[10px] font-bold uppercase text-slate-500">Huruf Mutu</span>
+                                <span class="inline-flex rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
+                                    {{ $myEnrollment->letter_grade ?: 'Belum Ada' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Daftar Mahasiswa Terdaftar ({{ $students->count() }} Mahasiswa)</span>
-                    <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
-                        Cetak Rekap Nilai Sah A4 &rarr;
-                    </a>
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        {{ auth()->user()->isStaff() ? 'Daftar Mahasiswa Terdaftar' : 'Teman Sekelas' }} ({{ $students->count() }} Mahasiswa)
+                    </span>
+                    @if(auth()->user()->isStaff())
+                        <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
+                            Cetak Rekap Nilai Sah A4 &rarr;
+                        </a>
+                    @endif
                 </div>
 
                 @if($students->isEmpty())
@@ -911,11 +998,15 @@
                                     <th class="py-3 px-4 w-12 text-center">No</th>
                                     <th class="py-3 px-4 w-36">NIM</th>
                                     <th class="py-3 px-4">Nama & Prodi Mahasiswa</th>
-                                    <th class="py-3 px-4 w-44 text-center">Kehadiran (%)</th>
-                                    <th class="py-3 px-4 w-24 text-center">Nilai Akhir</th>
-                                    <th class="py-3 px-4 w-20 text-center">Huruf Mutu</th>
-                                    @if($canManageStudents)
-                                        <th class="py-3 px-4 w-24 text-right">Aksi</th>
+                                    @if(auth()->user()->isStaff())
+                                        <th class="py-3 px-4 w-44 text-center">Kehadiran (%)</th>
+                                        <th class="py-3 px-4 w-24 text-center">Nilai Akhir</th>
+                                        <th class="py-3 px-4 w-20 text-center">Huruf Mutu</th>
+                                        @if($canManageStudents)
+                                            <th class="py-3 px-4 w-24 text-right">Aksi</th>
+                                        @endif
+                                    @else
+                                        <th class="py-3 px-4 w-28 text-center">Status</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -933,38 +1024,52 @@
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="py-3 px-4 text-center">
+                                        @if(auth()->user()->isStaff())
+                                            <td class="py-3 px-4 text-center">
+                                                @if($canManageStudents)
+                                                    <form method="post" action="{{ route('courses.students.update', [$course, $cs]) }}" class="inline-flex items-center justify-center gap-1.5">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="hidden" name="nim" value="{{ $cs->nim ?: $cs->student->nim }}">
+                                                        <input type="number" name="attendance_rate" min="0" max="100" step="1" value="{{ number_format($cs->attendance_rate, 0, '.', '') }}"
+                                                            class="w-16 rounded border-slate-300 py-1 px-2 text-center text-xs font-bold">
+                                                        <button type="submit" class="rounded bg-slate-800 px-2 py-1 text-[10px] font-bold text-white hover:bg-slate-700 transition" title="Simpan kehadiran">
+                                                            OK
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <span class="font-semibold text-slate-700">{{ number_format($cs->attendance_rate, 0) }}%</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3 px-4 text-center font-bold text-teal-800">{{ $cs->final_grade ? number_format($cs->final_grade, 1) : '-' }}</td>
+                                            <td class="py-3 px-4 text-center">
+                                                <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
+                                                    {{ $cs->letter_grade ?: '-' }}
+                                                </span>
+                                            </td>
                                             @if($canManageStudents)
-                                                <form method="post" action="{{ route('courses.students.update', [$course, $cs]) }}" class="inline-flex items-center justify-center gap-1.5">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <input type="hidden" name="nim" value="{{ $cs->nim ?: $cs->student->nim }}">
-                                                    <input type="number" name="attendance_rate" min="0" max="100" step="1" value="{{ number_format($cs->attendance_rate, 0, '.', '') }}"
-                                                        class="w-16 rounded border-slate-300 py-1 px-2 text-center text-xs font-bold">
-                                                    <button type="submit" class="rounded bg-slate-800 px-2 py-1 text-[10px] font-bold text-white hover:bg-slate-700 transition" title="Simpan kehadiran">
-                                                        OK
-                                                    </button>
-                                                </form>
-                                            @else
-                                                <span class="font-semibold text-slate-700">{{ number_format($cs->attendance_rate, 0) }}%</span>
+                                                <td class="py-3 px-4 text-right">
+                                                    <form method="post" action="{{ route('courses.students.unenroll', [$course, $cs]) }}"
+                                                        onsubmit="return confirm('Keluarkan {{ $cs->student->name }} dari kelas ini?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="rounded-lg border border-red-200 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 transition">
+                                                            Keluarkan
+                                                        </button>
+                                                    </form>
+                                                </td>
                                             @endif
-                                        </td>
-                                        <td class="py-3 px-4 text-center font-bold text-teal-800">{{ $cs->final_grade ? number_format($cs->final_grade, 1) : '-' }}</td>
-                                        <td class="py-3 px-4 text-center">
-                                            <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
-                                                {{ $cs->letter_grade ?: '-' }}
-                                            </span>
-                                        </td>
-                                        @if($canManageStudents)
-                                            <td class="py-3 px-4 text-right">
-                                                <form method="post" action="{{ route('courses.students.unenroll', [$course, $cs]) }}"
-                                                    onsubmit="return confirm('Keluarkan {{ $cs->student->name }} dari kelas ini?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="rounded-lg border border-red-200 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 transition">
-                                                        Keluarkan
-                                                    </button>
-                                                </form>
+                                        @else
+                                            <td class="py-3 px-4 text-center">
+                                                @if($cs->student_id === auth()->id())
+                                                    <span class="inline-flex rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-900">
+                                                        Anda
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+                                                        Mahasiswa
+                                                    </span>
+                                                @endif
                                             </td>
                                         @endif
                                     </tr>

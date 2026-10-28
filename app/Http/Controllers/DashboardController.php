@@ -25,15 +25,24 @@ class DashboardController extends Controller
                 ? WritingAssignment::query()->where('status', 'published')->whereHas('students', fn ($query) => $query->where('users.id', $user->id))->with('project')->latest()->take(10)->get()
                 : collect());
 
+        $enrolledCourses = $user->role === 'student'
+            ? $user->enrolledCourses()
+                ->with(['academicPeriod', 'lecturer', 'studyProgram.faculty'])
+                ->withCount(['materials', 'sessions'])
+                ->get()
+            : collect();
+
         $dashboardStats = $user->isStaff() ? [
             'projects' => (clone $accessibleProjects)->count(),
             'assignments' => WritingAssignment::query()->whereIn('project_id', $projectIds)->count(),
             'submissions' => WritingSubmission::query()->whereHas('assignment', fn ($query) => $query->whereIn('project_id', $projectIds))->count(),
         ] : ($user->role === 'student' ? [
+            'courses_count' => $enrolledCourses->count(),
+            'total_sks' => $enrolledCourses->sum('credit_hours'),
             'assignments' => WritingAssignment::query()->where('status', 'published')->whereHas('students', fn ($query) => $query->where('users.id', $user->id))->count(),
             'submissions' => WritingSubmission::query()->where('student_id', $user->id)->count(),
         ] : []);
 
-        return view('dashboard', compact('projects', 'assignments', 'dashboardStats'));
+        return view('dashboard', compact('projects', 'assignments', 'dashboardStats', 'enrolledCourses'));
     }
 }
