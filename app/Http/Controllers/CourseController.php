@@ -87,7 +87,7 @@ class CourseController extends Controller
             'studyProgram.faculty',
             'lecturer.lecturerProfile',
             'materials.uploader',
-            'sessions',
+            'sessions.attendances.student',
             'students.student.studyProgram',
             'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with(['submissions.student', 'rubric']),
         ]);

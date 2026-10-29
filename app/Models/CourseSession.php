@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CourseSession extends Model
 {
@@ -17,6 +18,9 @@ class CourseSession extends Model
         'total_students',
         'notes',
         'status',
+        'passcode',
+        'passcode_expires_at',
+        'is_attendance_open',
     ];
 
     protected function casts(): array
@@ -26,12 +30,34 @@ class CourseSession extends Model
             'date' => 'date',
             'attendance_count' => 'integer',
             'total_students' => 'integer',
+            'is_attendance_open' => 'boolean',
+            'passcode_expires_at' => 'datetime',
         ];
     }
 
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(CourseSessionAttendance::class);
+    }
+
+    public function isOpenForAttendance(): bool
+    {
+        return (bool) $this->is_attendance_open && (! $this->passcode_expires_at || $this->passcode_expires_at->isFuture());
+    }
+
+    public function hasStudentAttended(int $userId): bool
+    {
+        return $this->attendances->contains('user_id', $userId);
+    }
+
+    public function studentAttendance(int $userId): ?CourseSessionAttendance
+    {
+        return $this->attendances->firstWhere('user_id', $userId);
     }
 
     public function attendancePercentage(): float

@@ -88,6 +88,36 @@
         @endif
     </div>
 
+    @php
+        $activeSession = $course->activeAttendanceSession();
+    @endphp
+
+    @if(!auth()->user()->isStaff() && $activeSession && !$activeSession->hasStudentAttended(auth()->id()))
+        <div class="rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-xl bg-teal-800 text-white flex items-center justify-center font-bold text-sm">
+                        ⚡
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="rounded-full bg-teal-800 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">Presensi Sesi Dibuka</span>
+                            <span class="text-xs font-bold text-slate-900">Pertemuan Ke-{{ $activeSession->session_number }}: {{ $activeSession->topic }}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-0.5">Masukkan 4-digit kode presensi yang diberikan dosen di kelas:</p>
+                    </div>
+                </div>
+                <form method="post" action="{{ route('courses.sessions.check-in', [$course, $activeSession]) }}" class="flex items-center gap-2">
+                    @csrf
+                    <input type="text" name="passcode" required maxlength="4" pattern="[0-9]{4}" placeholder="0000" class="w-24 text-center font-mono font-bold tracking-widest text-base rounded-lg border-teal-300 focus:border-teal-600 focus:ring-teal-600 py-1.5 px-2 bg-white">
+                    <button type="submit" class="rounded-lg bg-teal-800 px-4 py-1.5 text-xs font-bold text-white hover:bg-teal-700 shadow-sm transition">
+                        Kirim Hadir
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
+
     {{-- Navigasi Tab Interaktif --}}
     <div x-data="{
         tab: '{{ in_array(request('tab'), ['materials', 'sessions', 'assignments', 'students'], true) ? request('tab') : 'materials' }}',
@@ -416,78 +446,281 @@
             </div>
         </div>
 
-        {{-- TAB 2: JURNAL PERKULIAHAN (16 PERTEMUAN) --}}
+        {{-- TAB 2: JURNAL PERKULIAHAN (16 PERTEMUAN) & PRESENSI --}}
         <div x-show="tab === 'sessions'" class="space-y-6">
-            {{-- Form Catat Jurnal (Untuk Dosen) --}}
-            @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
-                <details class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <summary class="flex cursor-pointer items-center justify-between font-semibold text-slate-800 list-none">
-                        <span class="inline-flex items-center gap-2 text-sm text-teal-800">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Catat Laporan Jurnal Perkuliahan Pertemuan Baru
+            @php
+                $activeSession = $course->activeAttendanceSession();
+            @endphp
+
+            {{-- 1. TAMPILAN SISI MAHASISWA: KARTU PRESENSI AKTIF --}}
+            @if(!auth()->user()->isStaff() && $activeSession)
+                @php
+                    $myAttendance = $activeSession->studentAttendance(auth()->id());
+                @endphp
+                @if($myAttendance)
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg">
+                                ✓
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Presensi Terverifikasi</span>
+                                <h3 class="text-sm font-bold text-slate-900">Pertemuan Ke-{{ $activeSession->session_number }}: {{ $activeSession->topic }}</h3>
+                                <p class="text-xs text-slate-600">
+                                    Kehadiran Anda telah dicatat pada pukul {{ $myAttendance->checked_in_at?->format('H:i') ?? '-' }} WIB.
+                                </p>
+                            </div>
+                        </div>
+                        <span class="inline-flex rounded-full bg-emerald-200/80 px-3.5 py-1 text-xs font-bold text-emerald-900 border border-emerald-300">
+                            Status: Hadir di Kelas
                         </span>
-                        <span class="text-xs text-slate-400 group-open:rotate-180 transition">&darr;</span>
-                    </summary>
-
-                    <form method="post" action="{{ route('courses.sessions.store', $course) }}" class="mt-5 space-y-4 border-t border-slate-100 pt-5">
-                        @csrf
-                        <div class="grid gap-4 sm:grid-cols-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700">Pertemuan Ke (1-16) *</label>
-                                <select name="session_number" required class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                                    @for($i = 1; $i <= 16; $i++)
-                                        <option value="{{ $i }}" @selected($sessions->count() + 1 === $i)>Pertemuan Ke-{{ $i }}</option>
-                                    @endfor
-                                </select>
+                    </div>
+                @else
+                    <div id="quick-attendance" class="rounded-2xl border-2 border-teal-500 bg-gradient-to-r from-teal-50 to-emerald-50 p-6 shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-teal-800 px-2.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wider animate-pulse">
+                                    ● Presensi Perkuliahan Sedang Dibuka
+                                </span>
+                                <h3 class="text-base font-bold text-slate-900">Pertemuan Ke-{{ $activeSession->session_number }}: {{ $activeSession->topic }}</h3>
+                                <p class="text-xs text-slate-600">
+                                    Silakan masukkan 4-digit kode presensi yang ditampilkan oleh dosen pengampu di layar kelas:
+                                </p>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700">Tanggal Pelaksanaan *</label>
-                                <input type="date" name="date" required value="{{ date('Y-m-d') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700">Jumlah Mahasiswa Hadir *</label>
-                                <input type="number" name="attendance_count" required value="{{ $students->count() ?: 1 }}" min="0" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700">Total Mahasiswa Kelas *</label>
-                                <input type="number" name="total_students" required value="{{ $students->count() ?: 1 }}" min="1" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            </div>
+                            <form method="post" action="{{ route('courses.sessions.check-in', [$course, $activeSession]) }}" class="flex items-center gap-3">
+                                @csrf
+                                <div>
+                                    <input type="text" name="passcode" required maxlength="4" pattern="[0-9]{4}" placeholder="0000"
+                                        class="w-32 text-center font-mono font-black tracking-widest text-2xl rounded-xl border-teal-400 focus:border-teal-600 focus:ring-teal-600 shadow-sm bg-white py-2">
+                                </div>
+                                <button type="submit" class="rounded-xl bg-teal-800 px-5 py-3 text-xs font-bold text-white hover:bg-teal-700 shadow transition flex items-center gap-1.5">
+                                    Kirim Presensi
+                                </button>
+                            </form>
                         </div>
-
-                        <div class="grid gap-4 sm:grid-cols-3">
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-semibold text-slate-700">Pokok Bahasan / Materi Perkuliahan *</label>
-                                <input type="text" name="topic" required placeholder="Contoh: Analisis Struktur Esai Argumentatif & Perumusan Tesis" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700">Metode Pembelajaran</label>
-                                <input type="text" name="teaching_method" placeholder="Contoh: Ceramah, Diskusi, PBL" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700">Catatan Refleksi Dosen / Evaluasi Kelas</label>
-                            <textarea name="notes" rows="2" placeholder="Catatan keaktifan mahasiswa, kendala, atau penugasan mandiri..." class="mt-1 w-full rounded-lg border-slate-300 text-sm"></textarea>
-                        </div>
-
-                        <div class="flex justify-end pt-2">
-                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-700 transition">
-                                Simpan Jurnal Perkuliahan
-                            </button>
-                        </div>
-                    </form>
-                </details>
+                    </div>
+                @endif
             @endif
 
-            {{-- Rekapitulasi Tabel 16 Pertemuan --}}
-            <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+            {{-- 2. TAMPILAN SISI DOSEN --}}
+            @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
+                {{-- A. JIKA ADA SESI PRESENSI AKTIF: TAMPILKAN LAYAR PROYEKTOR KELAS --}}
+                @if($activeSession)
+                    <div class="rounded-2xl border-2 border-teal-600 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white p-6 shadow-xl" x-data="{ showAttendees: false }">
+                        <div class="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-3 py-0.5 text-xs font-bold uppercase tracking-wider">
+                                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                        Presensi Kelas Sedang Dibuka
+                                    </span>
+                                    <span class="text-xs font-semibold text-teal-200">
+                                        Pertemuan Ke-{{ $activeSession->session_number }}
+                                    </span>
+                                </div>
+                                <h2 class="text-xl font-bold text-white mt-1.5">{{ $activeSession->topic }}</h2>
+                                <p class="text-xs text-slate-300 mt-0.5">
+                                    Tampilkan kode 4-digit ini di layar kelas/proyektor agar mahasiswa dapat melakukan presensi mandiri.
+                                </p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <form method="post" action="{{ route('courses.sessions.regenerate-code', [$course, $activeSession]) }}">
+                                    @csrf
+                                    <button type="submit" class="rounded-xl border border-slate-600 bg-slate-800/80 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition" title="Ganti kode jika bocor">
+                                        🔄 Acak Ulang
+                                    </button>
+                                </form>
+
+                                <form method="post" action="{{ route('courses.sessions.close-attendance', [$course, $activeSession]) }}" onsubmit="return confirm('Tutup sesi presensi pertemuan ini?')">
+                                    @csrf
+                                    <button type="submit" class="rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white transition shadow-sm">
+                                        ✕ Tutup Presensi Sesi
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {{-- Display Kode Raksasa & Statistik Realtime --}}
+                        <div class="mt-6 flex flex-wrap items-center justify-between gap-6 border-t border-slate-700/60 pt-6">
+                            <div class="flex items-center gap-5">
+                                <div class="rounded-2xl bg-white/10 p-3.5 backdrop-blur border border-white/20 text-center">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-teal-300 block mb-0.5">Kode Presensi</span>
+                                    <div class="text-4xl font-mono font-black tracking-widest text-emerald-300 select-all sm:text-5xl px-3">
+                                        {{ $activeSession->passcode }}
+                                    </div>
+                                </div>
+                                <div class="text-xs text-slate-300 space-y-1.5">
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Aktif s.d: <strong class="text-white">{{ $activeSession->passcode_expires_at?->format('H:i') ?? 'Selesai' }} WIB</strong></span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        <span>Sudah Hadir: <strong class="text-emerald-300 text-sm font-bold">{{ $activeSession->attendances->count() }}</strong> dari {{ $students->count() }} Mahasiswa ({{ round(($activeSession->attendances->count() / ($students->count() ?: 1)) * 100) }}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" @click="showAttendees = !showAttendees" class="rounded-xl border border-teal-400/40 bg-teal-800/60 px-4 py-2.5 text-xs font-bold text-teal-200 hover:bg-teal-700 hover:text-white transition">
+                                <span x-text="showAttendees ? 'Sembunyikan Daftar Mahasiswa' : 'Lihat Daftar Mahasiswa Hadir (' + {{ $activeSession->attendances->count() }} + ')'"></span>
+                            </button>
+                        </div>
+
+                        {{-- Collapsible Attendees List --}}
+                        <div x-show="showAttendees" x-cloak class="mt-4 rounded-xl bg-slate-800/90 p-4 border border-slate-700 max-h-56 overflow-y-auto">
+                            @if($activeSession->attendances->isEmpty())
+                                <p class="text-xs text-slate-400 text-center py-4">Belum ada mahasiswa yang memasukkan kode presensi.</p>
+                            @else
+                                <div class="grid gap-2 sm:grid-cols-2 md:grid-cols-3 text-xs">
+                                    @foreach($activeSession->attendances as $att)
+                                        <div class="flex items-center justify-between rounded-lg bg-slate-700/60 px-3 py-2 border border-slate-600/50">
+                                            <div class="truncate mr-2">
+                                                <div class="font-semibold text-slate-100 truncate">{{ $att->student->name }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $att->student->nim ?: 'NIM -' }}</div>
+                                            </div>
+                                            <span class="rounded bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.5 font-mono whitespace-nowrap">
+                                                {{ $att->checked_in_at?->format('H:i') }} WIB
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    {{-- B. JIKA TIDAK ADA SESI AKTIF: TAMPILKAN OPSI BUKA CEPAT & FORM MANUAL --}}
+                    <div class="grid gap-4 md:grid-cols-2">
+                        {{-- Widget Buka Presensi Cepat (Kode 4-Digit) --}}
+                        <div class="rounded-2xl border border-teal-200 bg-teal-50/50 p-5 shadow-sm">
+                            <div class="flex items-center gap-2 text-teal-800 font-bold text-sm">
+                                <svg class="h-5 w-5 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span>Buka Presensi Cepat (Kode 4-Digit)</span>
+                            </div>
+                            <p class="text-xs text-slate-600 mt-1 mb-4">
+                                Buka sesi kuliah hari ini dan generate kode 4-digit secara instan untuk presensi mandiri mahasiswa di kelas.
+                            </p>
+
+                            <form method="post" action="{{ route('courses.sessions.quick-open', $course) }}" class="space-y-3">
+                                @csrf
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700">Pertemuan</label>
+                                        <select name="session_number" class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                            @for($i = 1; $i <= 16; $i++)
+                                                <option value="{{ $i }}" @selected($sessions->count() + 1 === $i)>Sesi #{{ $i }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[11px] font-semibold text-slate-700">Materi / Topik (Opsional)</label>
+                                        <input type="text" name="topic" placeholder="Contoh: Diskusi Bab 2..." class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between gap-3 pt-1">
+                                    <div class="w-1/2">
+                                        <select name="duration_minutes" class="w-full rounded-lg border-slate-300 text-xs">
+                                            <option value="30">Aktif 30 Menit</option>
+                                            <option value="60" selected>Aktif 60 Menit</option>
+                                            <option value="90">Aktif 90 Menit</option>
+                                            <option value="120">Aktif 120 Menit</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="w-1/2 rounded-lg bg-teal-800 py-2 px-3 text-xs font-bold text-white hover:bg-teal-700 transition shadow-sm">
+                                        Generate Kode &rarr;
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {{-- Widget Catat Lengkap Jurnal (Accordion) --}}
+                        <details class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <summary class="flex cursor-pointer items-center justify-between font-semibold text-slate-800 list-none">
+                                <span class="inline-flex items-center gap-2 text-sm text-teal-800">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Form Catat Jurnal Lengkap
+                                </span>
+                                <span class="text-xs text-slate-400 group-open:rotate-180 transition">&darr;</span>
+                            </summary>
+
+                            <form method="post" action="{{ route('courses.sessions.store', $course) }}" class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                                @csrf
+                                <div class="grid gap-2 sm:grid-cols-3">
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700">Pertemuan *</label>
+                                        <select name="session_number" required class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                            @for($i = 1; $i <= 16; $i++)
+                                                <option value="{{ $i }}" @selected($sessions->count() + 1 === $i)>Sesi #{{ $i }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700">Tanggal *</label>
+                                        <input type="date" name="date" required value="{{ date('Y-m-d') }}" class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700">Hadir *</label>
+                                        <input type="number" name="attendance_count" required value="{{ $students->count() ?: 1 }}" min="0" class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                        <input type="hidden" name="total_students" value="{{ $students->count() ?: 1 }}">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-700">Pokok Bahasan / Materi *</label>
+                                    <input type="text" name="topic" required placeholder="Pokok bahasan perkuliahan..." class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-700">Metode Pembelajaran</label>
+                                    <input type="text" name="teaching_method" placeholder="Ceramah, Diskusi, PBL..." class="mt-1 w-full rounded-lg border-slate-300 text-xs">
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-700">Catatan Refleksi Dosen</label>
+                                    <textarea name="notes" rows="2" placeholder="Catatan kelas..." class="mt-1 w-full rounded-lg border-slate-300 text-xs"></textarea>
+                                </div>
+
+                                <div class="flex justify-end pt-1">
+                                    <button type="submit" class="rounded-xl bg-teal-800 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700 transition">
+                                        Simpan Jurnal
+                                    </button>
+                                </div>
+                            </form>
+                        </details>
+                    </div>
+                @endif
+            @endif
+
+            {{-- 3. REKAPITULASI TABEL 16 PERTEMUAN --}}
+            <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm" x-data="{ activeAttendeeModal: null }">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Rekapitulasi Jurnal 16 Pertemuan Sesi Perkuliahan</span>
-                    <a href="{{ route('courses.sessions.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
-                        Cetak Laporan Format A4 &rarr;
-                    </a>
+                    
+                    <div class="flex items-center gap-3">
+                        @if(auth()->user()->isStaff())
+                            <form method="post" action="{{ route('courses.sessions.sync-attendance', $course) }}" class="inline">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-teal-800 transition" title="Sinkronkan persentase presensi seluruh mahasiswa">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    <span>Sinkronkan Presensi</span>
+                                </button>
+                            </form>
+                            <span class="text-slate-300">·</span>
+                        @endif
+                        <a href="{{ route('courses.sessions.print', $course) }}" target="_blank" class="text-xs font-semibold text-teal-800 hover:text-teal-900">
+                            Cetak Laporan Format A4 &rarr;
+                        </a>
+                    </div>
                 </div>
 
                 @if($sessions->isEmpty())
@@ -502,11 +735,12 @@
                                     <th class="py-3 px-4 w-12 text-center">Sesi</th>
                                     <th class="py-3 px-4 w-28">Tanggal</th>
                                     <th class="py-3 px-4">Pokok Bahasan / Materi</th>
-                                    <th class="py-3 px-4 w-40">Metode</th>
-                                    <th class="py-3 px-4 w-24 text-center">Kehadiran</th>
+                                    <th class="py-3 px-4 w-36">Metode</th>
+                                    <th class="py-3 px-4 w-32 text-center">Kehadiran</th>
+                                    <th class="py-3 px-4 w-28 text-center">Status Sesi</th>
                                     <th class="py-3 px-4">Catatan Dosen</th>
                                     @if(auth()->user()->isStaff())
-                                        <th class="py-3 px-4 w-16 text-center">Aksi</th>
+                                        <th class="py-3 px-4 w-28 text-center">Aksi</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -523,30 +757,136 @@
                                             {{ $session->topic }}
                                         </td>
                                         <td class="py-3 px-4 text-slate-600">
-                                            {{ $session->teaching_method ?: 'Ceramah & Diskusi' }}
+                                            {{ $session->teaching_method ?: 'Tatap Muka' }}
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <span class="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                                                {{ $session->attendance_count }}/{{ $session->total_students }} ({{ $session->attendancePercentage() }}%)
-                                            </span>
+                                            @if(auth()->user()->isStaff())
+                                                <button type="button" @click="activeAttendeeModal = {{ $session->id }}" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition" title="Klik untuk lihat daftar hadir mahasiswa">
+                                                    {{ $session->attendance_count }}/{{ $session->total_students }} ({{ $session->attendancePercentage() }}%)
+                                                </button>
+                                            @else
+                                                @if($session->hasStudentAttended(auth()->id()))
+                                                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
+                                                        ✓ Hadir
+                                                    </span>
+                                                @elseif($session->isOpenForAttendance())
+                                                    <a href="#quick-attendance" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 border border-amber-300 animate-pulse">
+                                                        Isi Presensi &rarr;
+                                                    </a>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-400">
+                                                        Tidak Hadir
+                                                    </span>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            @if($session->isOpenForAttendance())
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-mono font-bold text-amber-900 animate-pulse">
+                                                    ● {{ $session->passcode }}
+                                                </span>
+                                            @else
+                                                <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                                    Selesai
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 text-slate-500 italic">
                                             {{ $session->notes ?: '-' }}
                                         </td>
                                         @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
                                             <td class="py-3 px-4 text-center">
-                                                <form method="post" action="{{ route('courses.sessions.destroy', [$course, $session]) }}" onsubmit="return confirm('Hapus jurnal pertemuan ini?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button class="text-slate-400 hover:text-red-600 transition" title="Hapus sesi">
-                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </form>
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    @if($session->isOpenForAttendance())
+                                                        <form method="post" action="{{ route('courses.sessions.close-attendance', [$course, $session]) }}">
+                                                            @csrf
+                                                            <button class="rounded px-2 py-1 text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition" title="Tutup presensi sesi ini">
+                                                                Tutup
+                                                            </button>
+                                                        </form>
+                                                    @else
+                                                        <form method="post" action="{{ route('courses.sessions.open-attendance', [$course, $session]) }}">
+                                                            @csrf
+                                                            <input type="hidden" name="duration_minutes" value="60">
+                                                            <button class="rounded px-2 py-1 text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition" title="Buka presensi dengan kode baru">
+                                                                Buka Presensi
+                                                            </button>
+                                                        </form>
+                                                    @endif
+
+                                                    <form method="post" action="{{ route('courses.sessions.destroy', [$course, $session]) }}" onsubmit="return confirm('Hapus jurnal pertemuan ini?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="text-slate-400 hover:text-red-600 transition p-1" title="Hapus sesi">
+                                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </td>
                                         @endif
                                     </tr>
+
+                                    {{-- Slide-over / Modal Detail Presensi Sesi --}}
+                                    @if(auth()->user()->isStaff())
+                                        <div x-show="activeAttendeeModal === {{ $session->id }}" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                                            <div @click.away="activeAttendeeModal = null" class="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+                                                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+                                                    <div>
+                                                        <h3 class="font-bold text-slate-900 text-sm">Daftar Kehadiran Pertemuan Ke-{{ $session->session_number }}</h3>
+                                                        <p class="text-xs text-slate-500">{{ $session->topic }} · {{ $session->date?->format('d/m/Y') }}</p>
+                                                    </div>
+                                                    <button type="button" @click="activeAttendeeModal = null" class="text-slate-400 hover:text-slate-700 font-bold text-lg">&times;</button>
+                                                </div>
+
+                                                <div class="p-6 max-h-96 overflow-y-auto divide-y divide-slate-100 text-xs">
+                                                    @forelse($students as $cs)
+                                                        @php
+                                                            $studentAtt = $session->studentAttendance($cs->student_id);
+                                                        @endphp
+                                                        <div class="py-2.5 flex items-center justify-between gap-3">
+                                                            <div>
+                                                                <div class="font-bold text-slate-800">{{ $cs->student->name }}</div>
+                                                                <div class="text-[11px] text-slate-500">{{ $cs->nim ?: $cs->student->nim ?: 'NIM -' }} · {{ $cs->student->studyProgram->name ?? 'Prodi' }}</div>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                @if($studentAtt)
+                                                                    <span class="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-bold">
+                                                                        Hadir ({{ $studentAtt->checked_in_at?->format('H:i') ?? '-' }})
+                                                                    </span>
+                                                                    <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
+                                                                        @csrf
+                                                                        <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
+                                                                        <input type="hidden" name="status" value="absent">
+                                                                        <button type="submit" class="text-[10px] text-rose-600 hover:underline">Ubah ke Alpa</button>
+                                                                    </form>
+                                                                @else
+                                                                    <span class="rounded-full bg-slate-100 text-slate-400 px-2.5 py-0.5 text-[10px]">
+                                                                        Tidak Hadir
+                                                                    </span>
+                                                                    <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
+                                                                        @csrf
+                                                                        <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
+                                                                        <input type="hidden" name="status" value="present">
+                                                                        <button type="submit" class="text-[10px] text-teal-800 font-bold hover:underline">Tandai Hadir</button>
+                                                                    </form>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    @empty
+                                                        <p class="text-center text-slate-400 py-4">Belum ada mahasiswa di kelas ini.</p>
+                                                    @endforelse
+                                                </div>
+
+                                                <div class="border-t border-slate-100 bg-slate-50 px-6 py-3 flex justify-end">
+                                                    <button type="button" @click="activeAttendeeModal = null" class="rounded-xl bg-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-300 transition">
+                                                        Tutup
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 @endforeach
                             </tbody>
                         </table>
@@ -989,6 +1329,16 @@
                     </span>
                     @if(auth()->user()->isStaff())
                         <div class="flex items-center gap-3">
+                            <form method="post" action="{{ route('courses.sessions.sync-attendance', $course) }}" class="inline">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-teal-800 transition" title="Sinkronkan persentase presensi mahasiswa">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    <span>Sinkronkan Presensi</span>
+                                </button>
+                            </form>
+                            <span class="text-slate-300">·</span>
                             <a href="{{ route('courses.grades.export', $course) }}" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-900">
                                 <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

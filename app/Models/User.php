@@ -105,6 +105,12 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /** @return HasMany<CourseSessionAttendance, $this> */
+    public function sessionAttendances(): HasMany
+    {
+        return $this->hasMany(CourseSessionAttendance::class);
+    }
+
     /**
      * Get the user's initials
      */

@@ -87,4 +87,43 @@ class Course extends Model
     {
         return $this->status === 'completed';
     }
+
+    public function activeAttendanceSession(): ?CourseSession
+    {
+        return $this->sessions->first(fn ($s) => $s->isOpenForAttendance());
+    }
+
+    public function syncStudentAttendanceRates(): void
+    {
+        $totalSessions = $this->sessions()
+            ->where(function ($q) {
+                $q->where('status', 'completed')
+                    ->orWhere('is_attendance_open', true)
+                    ->orWhere('attendance_count', '>', 0);
+            })
+            ->count();
+
+        if ($totalSessions === 0) {
+            return;
+        }
+
+        $sessionIds = $this->sessions()->pluck('id');
+
+        $attendancesGrouped = CourseSessionAttendance::query()
+            ->whereIn('course_session_id', $sessionIds)
+            ->whereIn('status', ['present', 'late'])
+            ->get()
+            ->groupBy('user_id');
+
+        $this->loadMissing('students');
+
+        foreach ($this->students as $courseStudent) {
+            $attendedCount = isset($attendancesGrouped[$courseStudent->student_id])
+                ? $attendancesGrouped[$courseStudent->student_id]->count()
+                : 0;
+
+            $rate = round(min(100, ($attendedCount / $totalSessions) * 100), 1);
+            $courseStudent->update(['attendance_rate' => $rate]);
+        }
+    }
 }

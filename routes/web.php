@@ -96,6 +96,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/courses/{course}/materials/{material}', [CourseMaterialController::class, 'destroy'])->name('courses.materials.destroy');
 
     Route::post('/courses/{course}/sessions', [CourseSessionController::class, 'store'])->name('courses.sessions.store');
+    Route::post('/courses/{course}/sessions/quick-open', [CourseSessionController::class, 'quickOpen'])->name('courses.sessions.quick-open');
+    Route::post('/courses/{course}/sessions/sync-attendance', [CourseSessionController::class, 'syncAttendance'])->name('courses.sessions.sync-attendance');
+    Route::post('/courses/{course}/sessions/{session}/open-attendance', [CourseSessionController::class, 'openAttendance'])->name('courses.sessions.open-attendance');
+    Route::post('/courses/{course}/sessions/{session}/close-attendance', [CourseSessionController::class, 'closeAttendance'])->name('courses.sessions.close-attendance');
+    Route::post('/courses/{course}/sessions/{session}/regenerate-code', [CourseSessionController::class, 'regeneratePasscode'])->name('courses.sessions.regenerate-code');
+    Route::post('/courses/{course}/sessions/{session}/check-in', [CourseSessionController::class, 'checkIn'])->name('courses.sessions.check-in');
+    Route::post('/courses/{course}/sessions/{session}/attendances/toggle', [CourseSessionController::class, 'toggleStudentAttendance'])->name('courses.sessions.attendances.toggle');
     Route::delete('/courses/{course}/sessions/{session}', [CourseSessionController::class, 'destroy'])->name('courses.sessions.destroy');
     Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
 
