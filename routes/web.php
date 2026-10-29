@@ -165,6 +165,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/projects/{project}/litsynth/blueprints/{blueprint}/invitations/{invitation}', [ExpertValidationController::class, 'revokeInvitation'])->name('litsynth.validation.invitations.destroy');
     Route::get('/assignments/{assignment}', [WritingAssignmentController::class, 'show'])->name('assignments.show');
     Route::patch('/assignments/{assignment}', [WritingAssignmentController::class, 'update'])->name('assignments.update');
+    Route::post('/assignments/extract-document', [WritingAssignmentController::class, 'extractDocument'])->name('assignments.extract-document');
     Route::post('/assignments/{assignment}/revisions', [WritingAssignmentController::class, 'submit'])->name('assignments.revisions.store');
     Route::post('/revisions/{revision}/feedback/generate', [WritingAssignmentController::class, 'generateFeedback'])->middleware('throttle:3,1')->name('feedback.generate');
     Route::post('/revisions/{revision}/feedback', [WritingAssignmentController::class, 'createFeedback'])->name('feedback.store');

@@ -38,7 +38,137 @@
 
 @if(auth()->user()->role === 'student')
     <section class="mt-8 grid gap-6 lg:grid-cols-2">
-        <div class="rounded-2xl border bg-white p-6"><h2 class="text-xl font-bold">Kirim revisi</h2>@if($assignment->due_at && $assignment->due_at->isPast())<p class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Tenggat tugas telah lewat. Pengiriman revisi ditutup.</p>@else<form method="post" action="{{ route('assignments.revisions.store', $assignment) }}" class="mt-4 space-y-4">@csrf<textarea required minlength="20" maxlength="50000" name="body_text" rows="12" class="w-full rounded-lg border-slate-300" placeholder="Tempelkan tulisan Anda di sini">{{ old('body_text') }}</textarea><button class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white">Kirim sebagai revisi baru</button></form>@endif</div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" x-data="{
+            text: @js(old('body_text', '')),
+            extracting: false,
+            extractSuccess: false,
+            extractMessage: '',
+            selectedFileName: '',
+            get wordCount() {
+                return this.text.trim() ? this.text.trim().split(/\s+/).length : 0;
+            },
+            get charCount() {
+                return this.text.length;
+            },
+            async handleFileChange(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.selectedFileName = file.name;
+                this.extracting = true;
+                this.extractSuccess = false;
+                this.extractMessage = '';
+
+                const formData = new FormData();
+                formData.append('document_file', file);
+                formData.append('_token', '{{ csrf_token() }}');
+
+                try {
+                    const response = await fetch('{{ route('assignments.extract-document') }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        this.text = data.text;
+                        this.extractSuccess = true;
+                        this.extractMessage = `Ekstraksi berhasil: ${data.word_count} kata (${data.char_count} karakter) diekstrak dari ${data.filename}.`;
+                    } else {
+                        alert(data.message || 'Gagal mengekstrak teks dari berkas.');
+                    }
+                } catch (e) {
+                    alert('Terjadi kendala saat membaca dokumen. Anda juga dapat menyalin-tempel teks secara langsung.');
+                } finally {
+                    this.extracting = false;
+                }
+            }
+        }">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Kirim Revisi Tugas</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Unggah berkas Word / PDF atau ketik langsung di editor WriteWise.</p>
+                </div>
+                <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 border border-teal-200">
+                    WriteWise AI Intake
+                </span>
+            </div>
+
+            @if($assignment->due_at && $assignment->due_at->isPast())
+                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <div class="flex items-center gap-2 font-bold">
+                        <span>⚠️ Tenggat Tugas Telah Berakhir</span>
+                    </div>
+                    <p class="mt-1 text-xs text-amber-800">
+                        Batas akhir pengumpulan draf tugas adalah {{ $assignment->due_at->format('d M Y, H:i') }} WIB. Pengiriman revisi telah ditutup oleh sistem.
+                    </p>
+                </div>
+            @else
+                {{-- Kotak Ekstraksi Berkas Word/PDF --}}
+                <div class="mt-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-800 text-white font-bold text-xs shadow-xs">
+                                📄
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-900 block">Ekstraksi Otomatis Dokumen</span>
+                                <span class="text-[11px] text-slate-500">Mendukung berkas Microsoft Word (.docx), PDF (.pdf), atau Text (.txt)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-teal-800 px-3.5 py-2 text-xs font-bold text-white hover:bg-teal-700 shadow-xs transition" :class="{ 'opacity-60 cursor-not-allowed': extracting }">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                <span x-text="extracting ? 'Mengekstrak Teks...' : 'Unggah & Ekstrak Berkas'"></span>
+                                <input type="file" accept=".docx,.pdf,.txt" class="hidden" @change="handleFileChange" :disabled="extracting">
+                            </label>
+                        </div>
+                    </div>
+
+                    {{-- Status Banner Ekstraksi --}}
+                    <div x-show="extractSuccess" x-cloak class="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span>✓</span>
+                            <span x-text="extractMessage"></span>
+                        </div>
+                        <button type="button" @click="extractSuccess = false" class="text-emerald-700 hover:text-emerald-900 font-bold">&times;</button>
+                    </div>
+
+                    <div x-show="extracting" x-cloak class="mt-3 text-xs text-teal-800 flex items-center gap-2">
+                        <svg class="animate-spin h-4 w-4 text-teal-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Sedang membaca dan mengekstrak teks dokumen naskah...</span>
+                    </div>
+                </div>
+
+                {{-- Form Pengiriman Submisi Revisi --}}
+                <form method="post" action="{{ route('assignments.revisions.store', $assignment) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
+                    @csrf
+                    <div>
+                        <div class="flex items-center justify-between pb-1.5">
+                            <label class="block text-xs font-semibold text-slate-700">Teks Naskah Esai / Tulisan Akademik *</label>
+                            <span class="text-[11px] font-mono text-slate-500" x-text="wordCount + ' kata · ' + charCount + ' karakter'"></span>
+                        </div>
+                        <textarea required minlength="20" maxlength="50000" name="body_text" rows="12" x-model="text"
+                            class="w-full rounded-xl border-slate-300 font-serif text-sm leading-relaxed text-slate-800 focus:border-teal-700 focus:ring-teal-700 shadow-xs"
+                            placeholder="Ketik, tempelkan draf esai, atau gunakan tombol 'Unggah & Ekstrak Berkas' di atas..."></textarea>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <span class="text-[11px] text-slate-500">
+                            Minimal 20 karakter · Naskah akan dievaluasi sesuai CPMK & rubrik akademik kelas.
+                        </span>
+                        <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 shadow transition">
+                            Kirim Sebagai Revisi Baru &rarr;
+                        </button>
+                    </div>
+                </form>
+            @endif
+        </div>
         <div><h2 class="text-xl font-bold">Riwayat revisi dan feedback</h2>@forelse($assignment->submissions as $submission)<div class="mt-3 space-y-3">@foreach($submission->revisions as $index => $revision)<article class="rounded-xl border bg-white p-5"><p class="text-sm font-semibold">Revisi {{ $revision->revision_number }} <span class="font-normal text-slate-500">· {{ $revision->submitted_at->format('d M Y H:i') }}</span></p><details class="mt-2"><summary class="cursor-pointer text-sm text-teal-800">Lihat teks revisi</summary><p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ $revision->body_text }}</p></details>
                     @if($index > 0) @php($previousRevision = $submission->revisions[$index - 1])<details class="mt-4 rounded-lg border border-slate-200 p-3"><summary class="cursor-pointer text-sm font-semibold">Bandingkan dengan revisi {{ $previousRevision->revision_number }}</summary><div class="mt-3 grid gap-3 md:grid-cols-2"><div class="rounded-lg bg-slate-50 p-3"><p class="mb-2 text-xs font-semibold uppercase text-slate-500">Sebelumnya · revisi {{ $previousRevision->revision_number }}</p><p class="whitespace-pre-line text-sm">{{ $previousRevision->body_text }}</p></div><div class="rounded-lg bg-teal-50 p-3"><p class="mb-2 text-xs font-semibold uppercase text-teal-800">Terbaru · revisi {{ $revision->revision_number }}</p><p class="whitespace-pre-line text-sm">{{ $revision->body_text }}</p></div></div></details>@endif
                     @foreach($revision->feedbackReports->where('status', 'published') as $report)<div class="mt-4 rounded-lg bg-teal-50 p-4"><p class="text-xs font-semibold uppercase text-teal-800">Feedback dosen</p><p class="mt-2 whitespace-pre-line text-sm">{{ $report->feedback_json['overall_summary'] ?? '' }}</p><p class="mt-2 text-xs text-teal-900">Diterbitkan {{ $report->published_at?->format('d M Y H:i') }}</p></div>@endforeach

@@ -13,6 +13,8 @@ use App\Models\WritingRevision;
 use App\Models\WritingSubmission;
 use App\Notifications\AcademicNotification;
 use App\Services\Ai\AiGateway;
+use App\Services\DocumentTextExtractor;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -118,13 +120,34 @@ class WritingAssignmentController extends Controller
         return view('assignments.show', compact('assignment', 'aiFeedbackAvailable'));
     }
 
-    public function submit(Request $request, WritingAssignment $assignment): RedirectResponse
+    public function submit(Request $request, WritingAssignment $assignment, DocumentTextExtractor $extractor): RedirectResponse
     {
         Gate::authorize('submitRevision', $assignment);
         abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
 
-        $data = $request->validate(['body_text' => ['required', 'string', 'min:20', 'max:50000']]);
-        DB::transaction(function () use ($assignment, $data) {
+        $data = $request->validate([
+            'body_text' => ['nullable', 'string', 'max:50000'],
+            'document_file' => ['nullable', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
+        ]);
+
+        $bodyText = ! empty($data['body_text']) ? trim($data['body_text']) : '';
+
+        if ($request->hasFile('document_file')) {
+            try {
+                $extracted = $extractor->extract($request->file('document_file'));
+                if ($extracted !== '') {
+                    $bodyText = $extracted;
+                }
+            } catch (\Throwable $e) {
+                return back()->withErrors(['document_file' => 'Gagal mengekstrak teks berkas: '.$e->getMessage()]);
+            }
+        }
+
+        if (mb_strlen($bodyText) < 20) {
+            return back()->withErrors(['body_text' => 'Teks naskah tugas atau hasil ekstraksi berkas minimal 20 karakter.']);
+        }
+
+        DB::transaction(function () use ($assignment, $bodyText) {
             $assignmentVersionId = $assignment->versions()->orderByDesc('version')->value('id');
             $rubricVersionId = $assignment->rubric()->orderByDesc('version')->value('id');
             $submission = WritingSubmission::firstOrCreate(['assignment_id' => $assignment->id, 'student_id' => Auth::id()]);
@@ -135,7 +158,7 @@ class WritingAssignmentController extends Controller
                 'assignment_version_id' => $assignmentVersionId,
                 'rubric_version_id' => $rubricVersionId,
                 'revision_number' => $number,
-                'body_text' => $data['body_text'],
+                'body_text' => $bodyText,
                 'submitted_at' => now(),
             ]);
             $submission->update(['status' => 'submitted']);
@@ -155,6 +178,35 @@ class WritingAssignmentController extends Controller
         });
 
         return back()->with('status', 'Revisi tersimpan sebagai versi baru.');
+    }
+
+    public function extractDocument(Request $request, DocumentTextExtractor $extractor): JsonResponse
+    {
+        $request->validate([
+            'document_file' => ['required', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
+        ], [
+            'document_file.required' => 'Pilih berkas Word (.docx), PDF (.pdf), atau Text (.txt) terlebih dahulu.',
+            'document_file.mimes' => 'Format berkas harus berupa .docx, .pdf, atau .txt.',
+            'document_file.max' => 'Ukuran berkas maksimal 10 MB.',
+        ]);
+
+        try {
+            $file = $request->file('document_file');
+            $text = $extractor->extract($file);
+
+            return response()->json([
+                'success' => true,
+                'text' => $text,
+                'char_count' => mb_strlen($text),
+                'word_count' => str_word_count($text),
+                'filename' => $file->getClientOriginalName(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function editFeedback(Request $request, WritingFeedbackReport $report): RedirectResponse
