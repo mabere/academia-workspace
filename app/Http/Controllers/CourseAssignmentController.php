@@ -67,11 +67,39 @@ class CourseAssignmentController extends Controller
             }
             if (! empty($data['source_text'])) {
                 $configJson['source_text'] = trim($data['source_text']);
-                $configJson['source_language'] = $data['source_language'] ?? 'id';
-                $configJson['target_language'] = $data['target_language'] ?? 'en';
+                $configJson['source_language'] = $data['source_language'] ?? 'Bahasa Indonesia';
+                $configJson['target_language'] = $data['target_language'] ?? 'English';
             }
 
             $assignmentType = $data['assignment_type'] ?? 'writing';
+
+            if ($assignmentType === 'milestone_artifact') {
+                $milestones = [];
+                $customTitles = $request->input('milestones', []);
+                if (is_array($customTitles) && count($customTitles) > 0) {
+                    foreach ($customTitles as $i => $item) {
+                        $title = is_array($item) ? ($item['title'] ?? '') : $item;
+                        if (trim((string) $title) !== '') {
+                            $milestones[] = [
+                                'id' => $i + 1,
+                                'title' => trim((string) $title),
+                                'due_date' => is_array($item) ? ($item['due_date'] ?? null) : null,
+                            ];
+                        }
+                    }
+                }
+                if (empty($milestones)) {
+                    // Default template milestone proposal riset/skripsi untuk Seminar ELT
+                    $milestones = [
+                        ['id' => 1, 'title' => 'Bab 1: Pendahuluan & Research Questions', 'due_date' => null],
+                        ['id' => 2, 'title' => 'Bab 2: Kajian Pustaka & Kerangka Teori (LitSynth)', 'due_date' => null],
+                        ['id' => 3, 'title' => 'Bab 3: Desain Metodologi & Instrumen Penelitian', 'due_date' => null],
+                        ['id' => 4, 'title' => 'Naskah Final Proposal & Tautan Slide/Video Seminar', 'due_date' => null],
+                    ];
+                }
+                $configJson['milestones'] = $milestones;
+                $configJson['allow_media_url'] = true;
+            }
 
             $assignment = $course->assignments()->create([
                 'project_id' => $project->id,

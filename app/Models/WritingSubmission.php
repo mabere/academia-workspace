@@ -24,6 +24,9 @@ class WritingSubmission extends Model
         'score',
         'mcq_score',
         'essay_score',
+        'artifact_url',
+        'current_milestone_id',
+        'notes',
         'started_at',
         'submitted_at',
         'graded_by',
@@ -36,10 +39,27 @@ class WritingSubmission extends Model
             'score' => 'float',
             'mcq_score' => 'float',
             'essay_score' => 'float',
+            'current_milestone_id' => 'integer',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'graded_at' => 'datetime',
         ];
+    }
+
+    public function currentMilestoneTitle(): ?string
+    {
+        if (! $this->current_milestone_id || ! $this->assignment) {
+            return null;
+        }
+
+        $milestones = $this->assignment->config_json['milestones'] ?? [];
+        foreach ($milestones as $m) {
+            if (($m['id'] ?? null) == $this->current_milestone_id) {
+                return $m['title'] ?? ('Milestone '.$this->current_milestone_id);
+            }
+        }
+
+        return 'Milestone '.$this->current_milestone_id;
     }
 
     /** @return HasMany<AssignmentQuestionAnswer, $this> */

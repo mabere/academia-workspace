@@ -128,6 +128,9 @@ class WritingAssignmentController extends Controller
         $data = $request->validate([
             'body_text' => ['nullable', 'string', 'max:50000'],
             'document_file' => ['nullable', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
+            'artifact_url' => ['nullable', 'url', 'max:500'],
+            'milestone_id' => ['nullable', 'integer'],
+            'notes' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $bodyText = ! empty($data['body_text']) ? trim($data['body_text']) : '';
@@ -143,11 +146,11 @@ class WritingAssignmentController extends Controller
             }
         }
 
-        if (mb_strlen($bodyText) < 20) {
-            return back()->withErrors(['body_text' => 'Teks naskah tugas atau hasil ekstraksi berkas minimal 20 karakter.']);
+        if (mb_strlen($bodyText) < 20 && empty($data['artifact_url'])) {
+            return back()->withErrors(['body_text' => 'Teks naskah tugas atau hasil ekstraksi berkas minimal 20 karakter (atau sertakan tautan artefak digital).']);
         }
 
-        DB::transaction(function () use ($assignment, $bodyText) {
+        DB::transaction(function () use ($assignment, $bodyText, $data) {
             $assignmentVersionId = $assignment->versions()->orderByDesc('version')->value('id');
             $rubricVersionId = $assignment->rubric()->orderByDesc('version')->value('id');
             $submission = WritingSubmission::firstOrCreate(['assignment_id' => $assignment->id, 'student_id' => Auth::id()]);
@@ -159,9 +162,18 @@ class WritingAssignmentController extends Controller
                 'rubric_version_id' => $rubricVersionId,
                 'revision_number' => $number,
                 'body_text' => $bodyText,
+                'artifact_url' => ! empty($data['artifact_url']) ? trim($data['artifact_url']) : null,
+                'milestone_id' => ! empty($data['milestone_id']) ? (int) $data['milestone_id'] : null,
+                'notes' => ! empty($data['notes']) ? trim($data['notes']) : null,
                 'submitted_at' => now(),
             ]);
-            $submission->update(['status' => 'submitted']);
+            $submission->update([
+                'status' => 'submitted',
+                'artifact_url' => ! empty($data['artifact_url']) ? trim($data['artifact_url']) : $submission->artifact_url,
+                'current_milestone_id' => ! empty($data['milestone_id']) ? (int) $data['milestone_id'] : $submission->current_milestone_id,
+                'notes' => ! empty($data['notes']) ? trim($data['notes']) : $submission->notes,
+                'submitted_at' => now(),
+            ]);
 
             // Beri notifikasi ke dosen pengampu jika tugas terhubung dengan mata kuliah
             if ($assignment->course && $assignment->course->lecturer) {

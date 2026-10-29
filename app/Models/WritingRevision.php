@@ -16,11 +16,41 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class WritingRevision extends Model
 {
-    protected $fillable = ['submission_id', 'created_by', 'assignment_version_id', 'rubric_version_id', 'revision_number', 'body_text', 'submitted_at'];
+    protected $fillable = [
+        'submission_id',
+        'created_by',
+        'assignment_version_id',
+        'rubric_version_id',
+        'revision_number',
+        'body_text',
+        'artifact_url',
+        'milestone_id',
+        'notes',
+        'submitted_at',
+    ];
 
     protected function casts(): array
     {
-        return ['submitted_at' => 'datetime'];
+        return [
+            'submitted_at' => 'datetime',
+            'milestone_id' => 'integer',
+        ];
+    }
+
+    public function milestoneTitle(): ?string
+    {
+        if (! $this->milestone_id || ! $this->submission?->assignment) {
+            return null;
+        }
+
+        $milestones = $this->submission->assignment->config_json['milestones'] ?? [];
+        foreach ($milestones as $m) {
+            if (($m['id'] ?? null) == $this->milestone_id) {
+                return $m['title'] ?? ('Milestone '.$this->milestone_id);
+            }
+        }
+
+        return 'Milestone '.$this->milestone_id;
     }
 
     /** @return BelongsTo<WritingSubmission, $this> */

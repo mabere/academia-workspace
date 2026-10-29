@@ -947,13 +947,13 @@
                         {{-- Pemilihan Format Tugas --}}
                         <div class="rounded-xl bg-white p-4 border border-teal-200 shadow-xs">
                             <label class="block text-xs font-bold text-slate-800 mb-1.5">Pilih Format & Model Penugasan *</label>
-                            <div class="grid gap-2.5 sm:grid-cols-3">
+                            <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
                                 <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
                                     :class="assignmentType === 'writing' ? 'border-teal-700 bg-teal-50/60 ring-1 ring-teal-700' : 'border-slate-200 hover:bg-slate-50'">
                                     <input type="radio" name="assignment_type" value="writing" x-model="assignmentType" class="mt-0.5 text-teal-700 focus:ring-teal-700">
                                     <div>
-                                        <p class="text-xs font-bold text-slate-900">Esai Akademik (WriteWise)</p>
-                                        <p class="text-[11px] text-slate-500">Esai analitis, draf bertahap, rubrik CPMK & umpan balik AI.</p>
+                                        <p class="text-xs font-bold text-slate-900">Esai Akademik</p>
+                                        <p class="text-[11px] text-slate-500">WriteWise AI, draf bertahap & rubrik CPMK.</p>
                                     </div>
                                 </label>
                                 <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
@@ -961,15 +961,31 @@
                                     <input type="radio" name="assignment_type" value="stimulus_exam" x-model="assignmentType" class="mt-0.5 text-amber-600 focus:ring-amber-600">
                                     <div>
                                         <p class="text-xs font-bold text-slate-900">Ujian Stimulus / Listening</p>
-                                        <p class="text-[11px] text-slate-500">Audio listening, batas putar terkendali & soal PG dinilai otomatis.</p>
+                                        <p class="text-[11px] text-slate-500">Audio listening, batas putar & PG otomatis.</p>
                                     </div>
                                 </label>
                                 <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
                                     :class="assignmentType === 'hybrid' ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600' : 'border-slate-200 hover:bg-slate-50'">
                                     <input type="radio" name="assignment_type" value="hybrid" x-model="assignmentType" class="mt-0.5 text-indigo-600 focus:ring-indigo-600">
                                     <div>
-                                        <p class="text-xs font-bold text-slate-900">Penilaian Campuran (MKDU)</p>
-                                        <p class="text-[11px] text-slate-500">Seksi 1: PG (otomatis) + Seksi 2: Studi Kasus/Esai (rubrik).</p>
+                                        <p class="text-xs font-bold text-slate-900">Campuran MKDU</p>
+                                        <p class="text-[11px] text-slate-500">Seksi 1: PG (otomatis) + Seksi 2: Esai (rubrik).</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
+                                    :class="assignmentType === 'translation' ? 'border-purple-600 bg-purple-50/60 ring-1 ring-purple-600' : 'border-slate-200 hover:bg-slate-50'">
+                                    <input type="radio" name="assignment_type" value="translation" x-model="assignmentType" class="mt-0.5 text-purple-600 focus:ring-purple-600">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-900">Penerjemahan Teks</p>
+                                        <p class="text-[11px] text-slate-500">Panel ganda (Source vs Target) + catatan padanan.</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
+                                    :class="assignmentType === 'milestone_artifact' ? 'border-rose-600 bg-rose-50/60 ring-1 ring-rose-600' : 'border-slate-200 hover:bg-slate-50'">
+                                    <input type="radio" name="assignment_type" value="milestone_artifact" x-model="assignmentType" class="mt-0.5 text-rose-600 focus:ring-rose-600">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-900">Proposal Bertahap</p>
+                                        <p class="text-[11px] text-slate-500">Bab 1-3 bertahap + tautan video/slide.</p>
                                     </div>
                                 </label>
                             </div>
@@ -1034,6 +1050,44 @@
                                     <input type="number" name="time_limit_minutes" value="60" min="5" max="360" class="mt-1 w-full rounded-lg border-indigo-300 text-xs focus:border-indigo-700 focus:ring-indigo-700">
                                 </div>
                             </div>
+                        </div>
+
+                        {{-- Pengaturan Khusus Format Penerjemahan Teks --}}
+                        <div x-show="assignmentType === 'translation'" class="rounded-xl bg-purple-50/80 p-4 border border-purple-200 space-y-3">
+                            <p class="text-xs font-bold text-purple-950">Konfigurasi Tugas Penerjemahan Teks (ENG6545 & FH132MPK2):</p>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-purple-900">Bahasa Sumber (Source Language) *</label>
+                                    <input type="text" name="source_language" value="Bahasa Indonesia" class="mt-1 w-full rounded-lg border-purple-300 text-xs focus:border-purple-700 focus:ring-purple-700">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-purple-900">Bahasa Sasaran (Target Language) *</label>
+                                    <input type="text" name="target_language" value="English" class="mt-1 w-full rounded-lg border-purple-300 text-xs focus:border-purple-700 focus:ring-purple-700">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-purple-900">Naskah Sumber (Source Text) yang Harus Diterjemahkan *</label>
+                                <textarea name="source_text" rows="5" placeholder="Tempelkan paragraf berita, naskah pidato, atau klausul hukum yang wajib diterjemahkan mahasiswa ke panel berdampingan..." class="mt-1 w-full rounded-lg border-purple-300 font-serif text-xs leading-relaxed focus:border-purple-700 focus:ring-purple-700"></textarea>
+                                <p class="mt-1 text-[10px] text-purple-700">Mahasiswa akan melihat teks ini terkunci di panel kiri dan menerjemahkan di editor panel kanan.</p>
+                            </div>
+                        </div>
+
+                        {{-- Pengaturan Khusus Format Proposal Bertahap --}}
+                        <div x-show="assignmentType === 'milestone_artifact'" class="rounded-xl bg-rose-50/80 p-4 border border-rose-200 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-bold text-rose-950">Konfigurasi Proposal & Proyek Bertahap (ENG6549 & ENG6755):</p>
+                                <span class="rounded-full bg-rose-200/60 px-2 py-0.5 text-[10px] font-bold text-rose-900">Preset ELT & Proyek</span>
+                            </div>
+                            <div class="rounded-lg bg-white p-3 border border-rose-200 text-xs text-rose-900 space-y-1.5">
+                                <p class="font-bold">4 Tahapan Milestone Terstruktur Otomatis:</p>
+                                <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-700">
+                                    <li><strong>Bab 1</strong>: Pendahuluan, Latar Belakang & Pertanyaan Riset (Research Questions).</li>
+                                    <li><strong>Bab 2</strong>: Kajian Pustaka & Kerangka Teoretis (Integrasi Sintesis LitSynth).</li>
+                                    <li><strong>Bab 3</strong>: Desain Metodologi & Rencana Instrumen Pengumpulan Data.</li>
+                                    <li><strong>Naskah Final & Artefak</strong>: Proposal Lengkap + Tautan Slide / Video Presentasi Seminar (YouTube / Drive).</li>
+                                </ol>
+                            </div>
+                            <p class="text-[10px] text-rose-700">Mahasiswa dapat mengumpulkan draf per tahapan secara bertahap dan menyertakan URL tautan video/slide.</p>
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-3">
