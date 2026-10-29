@@ -1093,7 +1093,10 @@
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700">Nama Rubrik Penilaian</label>
-                                <input type="text" name="rubric_name" value="Rubrik Analitik Penulisan Akademik" placeholder="Rubrik Penilaian" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                                <input type="text" name="rubric_name"
+                                    :placeholder="assignmentType === 'translation' ? 'Rubrik Kualitas Penerjemahan (TQA)' : (assignmentType === 'milestone_artifact' ? 'Rubrik Evaluasi Proposal Penelitian' : 'Rubrik Analitik Penulisan Akademik')"
+                                    :value="assignmentType === 'translation' ? 'Rubrik Kualitas Penerjemahan (Translation Quality Assessment)' : (assignmentType === 'milestone_artifact' ? 'Rubrik Evaluasi Proposal Penelitian & Presentasi' : 'Rubrik Analitik Penulisan Akademik')"
+                                    class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700">Bahasa Umpan Balik AI</label>

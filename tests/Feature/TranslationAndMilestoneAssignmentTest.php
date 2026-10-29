@@ -131,6 +131,16 @@ class TranslationAndMilestoneAssignmentTest extends TestCase
         $this->assertEquals('Bahasa Indonesia', $assignment->config_json['source_language']);
         $this->assertEquals('English', $assignment->config_json['target_language']);
         $this->assertEquals($sourceText, $assignment->config_json['source_text']);
+
+        // Verifikasi bahwa rubrik otomatis yang terpasang adalah Rubrik Kualitas Penerjemahan (TQA)
+        $rubric = $assignment->rubric()->latest('version')->firstOrFail();
+        $this->assertEquals('Rubrik Kualitas Penerjemahan (Translation Quality Assessment)', $rubric->name);
+        $criterionNames = collect($rubric->criteria)->pluck('name')->all();
+        $this->assertContains('Accuracy & Faithfulness', $criterionNames);
+        $this->assertContains('Acceptability & Naturalness', $criterionNames);
+        $this->assertContains('Terminology & Register', $criterionNames);
+        $this->assertContains('Translation Strategies & Notes', $criterionNames);
+        $this->assertContains('Target Mechanics & Style', $criterionNames);
     }
 
     public function test_student_can_submit_translation_with_translators_notes(): void
@@ -191,6 +201,15 @@ class TranslationAndMilestoneAssignmentTest extends TestCase
         $this->assertNotEmpty($assignment->config_json['milestones']);
         $this->assertCount(4, $assignment->config_json['milestones']);
         $this->assertStringContainsString('Bab 1', $assignment->config_json['milestones'][0]['title']);
+
+        // Verifikasi bahwa rubrik otomatis yang terpasang adalah Rubrik Evaluasi Proposal Penelitian & Presentasi
+        $rubric = $assignment->rubric()->latest('version')->firstOrFail();
+        $this->assertEquals('Rubrik Evaluasi Proposal Penelitian & Presentasi', $rubric->name);
+        $criterionNames = collect($rubric->criteria)->pluck('name')->all();
+        $this->assertContains('Research Problem & Urgency', $criterionNames);
+        $this->assertContains('Literature Synthesis & Theory', $criterionNames);
+        $this->assertContains('Methodology & Design', $criterionNames);
+        $this->assertContains('Academic Presentation & Delivery', $criterionNames);
     }
 
     public function test_student_can_submit_milestone_revision_with_digital_artifact_link(): void

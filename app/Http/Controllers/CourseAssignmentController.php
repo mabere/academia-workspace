@@ -137,18 +137,42 @@ class CourseAssignmentController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            // Buat rubrik penilaian analitik default
-            $criteria = [
-                ['name' => 'Content & Argument', 'description' => 'Kesesuaian isi, kejelasan tesis, dan kedalaman argumen.', 'weight' => 1.0],
-                ['name' => 'Organization & Structure', 'description' => 'Koherensi, transisi antar paragraf, dan alur pemikiran logis.', 'weight' => 1.0],
-                ['name' => 'Vocabulary & Lexicon', 'description' => 'Kekayaan kosakata akademik dan ketepatan istilah bidang studi.', 'weight' => 1.0],
-                ['name' => 'Language Use & Grammar', 'description' => 'Ketepatan tata bahasa, variasi kalimat, dan tanda baca.', 'weight' => 1.0],
-                ['name' => 'Mechanics & Academic Style', 'description' => 'Format sitasi, ejaan, kerapian, dan konvensi akademik.', 'weight' => 1.0],
-            ];
+            // Buat rubrik penilaian analitik default sesuai format tugas
+            if ($assignmentType === 'translation') {
+                $defaultRubricName = 'Rubrik Kualitas Penerjemahan (Translation Quality Assessment)';
+                $criteria = [
+                    ['name' => 'Accuracy & Faithfulness', 'description' => 'Ketepatan pengalihan pesan dari teks sumber (ST) ke teks sasaran (TT) tanpa distorsi, omisi (penghilangan), atau penambahan makna yang tidak semestinya.', 'weight' => 1.5],
+                    ['name' => 'Acceptability & Naturalness', 'description' => 'Keberterimaan, kelancaran (fluency), dan kealamian bahasa sasaran sesuai kaidah dan gaya bahasa teks tanpa kekakuan interferensi bahasa sumber.', 'weight' => 1.0],
+                    ['name' => 'Terminology & Register', 'description' => 'Ketepatan pemilihan padanan istilah teknis/spesifik bidang ilmu, konsistensi istilah, dan kesesuaian laras bahasa akademik/formal.', 'weight' => 1.0],
+                    ['name' => 'Translation Strategies & Notes', 'description' => 'Keberhasilan penerapan prosedur penerjemahan (transposisi, modulasi, adaptasi) serta mutu pertimbangan pada Catatan Penerjemah (Translator\'s Notes).', 'weight' => 1.0],
+                    ['name' => 'Target Mechanics & Style', 'description' => 'Ketepatan ejaan baku, tanda baca, tata bahasa sasaran, dan kepatuhan format teks terjemahan.', 'weight' => 0.5],
+                ];
+            } elseif ($assignmentType === 'milestone_artifact') {
+                $defaultRubricName = 'Rubrik Evaluasi Proposal Penelitian & Presentasi';
+                $criteria = [
+                    ['name' => 'Research Problem & Urgency', 'description' => 'Kejelasan latar belakang, ketajaman gap penelitian, dan kejelasan rumusan masalah / research questions.', 'weight' => 1.0],
+                    ['name' => 'Literature Synthesis & Theory', 'description' => 'Kedalaman sintesis pustaka relevan bereputasi, integrasi kajian terdahulu (LitSynth), dan kerangka berpikir teoretis.', 'weight' => 1.0],
+                    ['name' => 'Methodology & Design', 'description' => 'Ketepatan desain penelitian, populasi/partisipan, prosedur pengumpulan data, dan rencana instrumen riset.', 'weight' => 1.0],
+                    ['name' => 'Academic Presentation & Delivery', 'description' => 'Kerapian draf naskah, kualitas artefak slide/video presentasi seminar, dan artikulasi gagasan penelitian.', 'weight' => 1.0],
+                ];
+            } else {
+                $defaultRubricName = 'Rubrik Analitik Penulisan Akademik';
+                $criteria = [
+                    ['name' => 'Content & Argument', 'description' => 'Kesesuaian isi, kejelasan tesis, dan kedalaman argumen.', 'weight' => 1.0],
+                    ['name' => 'Organization & Structure', 'description' => 'Koherensi, transisi antar paragraf, dan alur pemikiran logis.', 'weight' => 1.0],
+                    ['name' => 'Vocabulary & Lexicon', 'description' => 'Kekayaan kosakata akademik dan ketepatan istilah bidang studi.', 'weight' => 1.0],
+                    ['name' => 'Language Use & Grammar', 'description' => 'Ketepatan tata bahasa, variasi kalimat, dan tanda baca.', 'weight' => 1.0],
+                    ['name' => 'Mechanics & Academic Style', 'description' => 'Format sitasi, ejaan, kerapian, dan konvensi akademik.', 'weight' => 1.0],
+                ];
+            }
+
+            $rubricName = (! empty($data['rubric_name']) && $data['rubric_name'] !== 'Rubrik Analitik Penulisan Akademik')
+                ? $data['rubric_name']
+                : $defaultRubricName;
 
             $assignment->rubric()->create([
                 'version' => 1,
-                'name' => ! empty($data['rubric_name']) ? $data['rubric_name'] : 'Rubrik Analitik Penulisan Akademik',
+                'name' => $rubricName,
                 'scale_min' => 1,
                 'scale_max' => 5,
                 'criteria' => $criteria,
