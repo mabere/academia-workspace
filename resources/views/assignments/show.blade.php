@@ -1,9 +1,37 @@
 @extends('layouts.hub')
 @section('title', $assignment->title.' — WriteWise ELT')
 @section('content')
-<a href="{{ auth()->user()->isStaff() ? route('projects.show', $assignment->project) : route('dashboard') }}" class="text-sm font-medium text-teal-800 hover:underline">← Kembali</a>
+<a href="{{ $assignment->course_id ? route('courses.show', ['course' => $assignment->course_id, 'tab' => 'assignments']) : (auth()->user()->isStaff() ? route('projects.show', $assignment->project) : route('dashboard')) }}" class="text-sm font-medium text-teal-800 hover:underline">← Kembali ke {{ $assignment->course_id ? 'Daftar Tugas Perkuliahan' : 'Proyek' }}</a>
 <section class="mt-3 rounded-2xl border bg-white p-6">
-    <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-sm text-teal-800">{{ $assignment->project->name }} · WriteWise ELT</p><h1 class="mt-2 text-2xl font-bold">{{ $assignment->title }}</h1></div><span class="rounded-full {{ $assignment->status === 'published' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800' }} px-3 py-1 text-xs font-semibold">{{ $assignment->status === 'published' ? 'Tugas terbit' : 'Draf dosen' }}</span></div>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <p class="text-sm text-teal-800">{{ $assignment->course ? $assignment->course->name.' ('.$assignment->course->code.')' : $assignment->project->name }} · WriteWise ELT</p>
+            <h1 class="mt-2 text-2xl font-bold">{{ $assignment->title }}</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="rounded-full {{ $assignment->status === 'published' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800' }} px-3 py-1 text-xs font-semibold">{{ $assignment->status === 'published' ? 'Tugas terbit' : 'Draf dosen' }}</span>
+            @if(auth()->user()->isStaff() && ($assignment->course_id ? (auth()->id() === $assignment->course->lecturer_id || auth()->user()->role === 'admin') : ($assignment->project->isOwnedBy(auth()->user()) || $assignment->project->hasEditor(auth()->user()))))
+                @if($assignment->course_id)
+                    <a href="{{ route('courses.assignments.edit', [$assignment->course_id, $assignment]) }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                        <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Sunting
+                    </a>
+                @endif
+                <form method="post" action="{{ $assignment->course_id ? route('courses.assignments.destroy', [$assignment->course_id, $assignment]) : route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus tugas ini secara permanen?');" class="inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition">
+                        <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Hapus
+                    </button>
+                </form>
+            @endif
+        </div>
+    </div>
     <p class="mt-4 whitespace-pre-line text-slate-700">{{ $assignment->instructions }}</p>
     <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500"><span>Feedback {{ $assignment->feedback_level }} · {{ $assignment->feedback_language === 'id' ? 'Bahasa Indonesia' : 'English' }}</span>@if($assignment->due_at)<span>Tenggat {{ $assignment->due_at->format('d M Y, H:i') }}</span>@endif @if($assignment->currentRubric)<span>Rubrik v{{ $assignment->currentRubric->version }} · skala {{ $assignment->currentRubric->scale_min }}–{{ $assignment->currentRubric->scale_max }}</span>@endif</div>
 </section>

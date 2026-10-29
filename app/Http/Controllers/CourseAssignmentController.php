@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -199,6 +200,173 @@ class CourseAssignmentController extends Controller
         }
 
         return back()->with('status', 'Tugas perkuliahan "'.$data['title'].'" berhasil diterbitkan untuk seluruh mahasiswa kelas.');
+    }
+
+    public function edit(Request $request, Course $course, WritingAssignment $assignment): View
+    {
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($assignment->course_id === $course->id, 404);
+
+        $assignment->load(['rubric', 'questions', 'submissions.student']);
+
+        return view('courses.assignments.edit', [
+            'course' => $course,
+            'assignment' => $assignment,
+            'currentRubric' => $assignment->rubric()->latest('version')->first(),
+        ]);
+    }
+
+    public function update(Request $request, Course $course, WritingAssignment $assignment): RedirectResponse
+    {
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($assignment->course_id === $course->id, 404);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:180'],
+            'instructions' => ['required', 'string', 'max:10000'],
+            'assignment_type' => ['nullable', 'string', 'in:writing,stimulus_exam,hybrid,translation,milestone_artifact'],
+            'status' => ['required', 'string', 'in:draft,published'],
+            'time_limit_minutes' => ['nullable', 'integer', 'min:5', 'max:360'],
+            'mcq_weight_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'essay_weight_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a', 'max:51200'],
+            'audio_max_plays' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'reading_passage' => ['nullable', 'string', 'max:20000'],
+            'source_text' => ['nullable', 'string', 'max:20000'],
+            'source_language' => ['nullable', 'string', 'max:60'],
+            'target_language' => ['nullable', 'string', 'max:60'],
+            'due_at' => ['nullable', 'date'],
+            'feedback_language' => ['nullable', 'string', 'in:id,en'],
+            'feedback_level' => ['nullable', 'string', 'in:direct,indirect,balanced'],
+            'rubric_name' => ['nullable', 'string', 'max:120'],
+            'delete_audio' => ['nullable', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($course, $assignment, $data, $request) {
+            $configJson = $assignment->config_json ?? [];
+
+            if ($request->boolean('delete_audio')) {
+                if (! empty($configJson['audio_file_path']) && Storage::disk('public')->exists($configJson['audio_file_path'])) {
+                    Storage::disk('public')->delete($configJson['audio_file_path']);
+                }
+                unset($configJson['audio_file_path']);
+            }
+
+            if ($request->hasFile('audio_file')) {
+                if (! empty($configJson['audio_file_path']) && Storage::disk('public')->exists($configJson['audio_file_path'])) {
+                    Storage::disk('public')->delete($configJson['audio_file_path']);
+                }
+                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'public');
+            }
+
+            if (isset($data['audio_max_plays'])) {
+                $configJson['audio_max_plays'] = (int) $data['audio_max_plays'];
+            }
+
+            if (array_key_exists('reading_passage', $data)) {
+                if (! empty($data['reading_passage'])) {
+                    $configJson['reading_passage'] = trim($data['reading_passage']);
+                } else {
+                    unset($configJson['reading_passage']);
+                }
+            }
+
+            if (array_key_exists('source_text', $data)) {
+                if (! empty($data['source_text'])) {
+                    $configJson['source_text'] = trim($data['source_text']);
+                    $configJson['source_language'] = $data['source_language'] ?? 'Bahasa Indonesia';
+                    $configJson['target_language'] = $data['target_language'] ?? 'English';
+                } else {
+                    unset($configJson['source_text'], $configJson['source_language'], $configJson['target_language']);
+                }
+            }
+
+            $assignmentType = $data['assignment_type'] ?? $assignment->assignment_type ?? 'writing';
+
+            if ($assignmentType === 'milestone_artifact') {
+                $customMilestones = $request->input('milestones', []);
+                if (is_array($customMilestones) && count($customMilestones) > 0) {
+                    $milestones = [];
+                    foreach ($customMilestones as $i => $item) {
+                        $mTitle = is_array($item) ? ($item['title'] ?? '') : $item;
+                        if (trim((string) $mTitle) !== '') {
+                            $milestones[] = [
+                                'id' => $i + 1,
+                                'title' => trim((string) $mTitle),
+                                'due_date' => is_array($item) ? ($item['due_date'] ?? null) : null,
+                            ];
+                        }
+                    }
+                    if (! empty($milestones)) {
+                        $configJson['milestones'] = $milestones;
+                    }
+                }
+                $configJson['allow_media_url'] = true;
+            }
+
+            $assignment->update([
+                'title' => $data['title'],
+                'instructions' => $data['instructions'],
+                'assignment_type' => $assignmentType,
+                'status' => $data['status'],
+                'time_limit_minutes' => ! empty($data['time_limit_minutes']) ? (int) $data['time_limit_minutes'] : null,
+                'mcq_weight_percentage' => (int) ($data['mcq_weight_percentage'] ?? 30),
+                'essay_weight_percentage' => (int) ($data['essay_weight_percentage'] ?? 70),
+                'config_json' => ! empty($configJson) ? $configJson : null,
+                'feedback_language' => $data['feedback_language'] ?? 'id',
+                'feedback_level' => $data['feedback_level'] ?? 'indirect',
+                'due_at' => $data['due_at'] ?? null,
+            ]);
+
+            $nextVersion = (int) $assignment->versions()->max('version') + 1;
+            $assignment->versions()->create([
+                'version' => $nextVersion,
+                'title' => $assignment->title,
+                'instructions' => $assignment->instructions,
+                'feedback_language' => $assignment->feedback_language,
+                'feedback_level' => $assignment->feedback_level,
+                'status' => $assignment->status,
+                'due_at' => $assignment->due_at,
+                'created_by' => Auth::id(),
+            ]);
+
+            if (! empty($data['rubric_name'])) {
+                $latestRubric = $assignment->rubric()->latest('version')->first();
+                if ($latestRubric && $latestRubric->name !== $data['rubric_name']) {
+                    $latestRubric->update(['name' => $data['rubric_name']]);
+                }
+            }
+        });
+
+        return redirect()
+            ->route('courses.show', ['course' => $course, 'tab' => 'assignments'])
+            ->with('status', 'Tugas perkuliahan "'.$assignment->title.'" berhasil diperbarui.');
+    }
+
+    public function destroy(Request $request, Course $course, WritingAssignment $assignment): RedirectResponse
+    {
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($assignment->course_id === $course->id, 404);
+
+        $title = $assignment->title;
+
+        DB::transaction(function () use ($course, $assignment) {
+            if (! empty($assignment->config_json['audio_file_path']) && Storage::disk('public')->exists($assignment->config_json['audio_file_path'])) {
+                Storage::disk('public')->delete($assignment->config_json['audio_file_path']);
+            }
+
+            $affectedStudentIds = $assignment->submissions()->pluck('student_id')->all();
+
+            $assignment->delete();
+
+            foreach ($affectedStudentIds as $studentId) {
+                $this->recalculateCourseStudentGrade($course, $studentId);
+            }
+        });
+
+        return redirect()
+            ->route('courses.show', ['course' => $course, 'tab' => 'assignments'])
+            ->with('status', 'Tugas perkuliahan "'.$title.'" berhasil dihapus.');
     }
 
     public function grade(Request $request, Course $course, WritingAssignment $assignment, WritingSubmission $submission): RedirectResponse
@@ -440,6 +608,11 @@ class CourseAssignmentController extends Controller
             $courseStudent->update([
                 'final_grade' => $average,
                 'letter_grade' => $letter,
+            ]);
+        } else {
+            $courseStudent->update([
+                'final_grade' => null,
+                'letter_grade' => null,
             ]);
         }
     }

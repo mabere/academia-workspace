@@ -114,6 +114,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
 
     Route::post('/courses/{course}/assignments', [CourseAssignmentController::class, 'store'])->name('courses.assignments.store');
+    Route::get('/courses/{course}/assignments/{assignment}/edit', [CourseAssignmentController::class, 'edit'])->name('courses.assignments.edit');
+    Route::put('/courses/{course}/assignments/{assignment}', [CourseAssignmentController::class, 'update'])->name('courses.assignments.update');
+    Route::delete('/courses/{course}/assignments/{assignment}', [CourseAssignmentController::class, 'destroy'])->name('courses.assignments.destroy');
     Route::post('/courses/{course}/assignments/{assignment}/submissions/{submission}/grade', [CourseAssignmentController::class, 'grade'])->name('courses.assignments.grade');
     Route::get('/courses/{course}/grades/print', [CourseAssignmentController::class, 'printGrades'])->name('courses.grades.print');
     Route::get('/courses/{course}/grades/export', [CourseAssignmentController::class, 'exportGrades'])->name('courses.grades.export');
@@ -166,6 +169,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/projects/{project}/litsynth/blueprints/{blueprint}/invitations/{invitation}', [ExpertValidationController::class, 'revokeInvitation'])->name('litsynth.validation.invitations.destroy');
     Route::get('/assignments/{assignment}', [WritingAssignmentController::class, 'show'])->name('assignments.show');
     Route::patch('/assignments/{assignment}', [WritingAssignmentController::class, 'update'])->name('assignments.update');
+    Route::delete('/assignments/{assignment}', [WritingAssignmentController::class, 'destroy'])->name('assignments.destroy');
     Route::post('/assignments/extract-document', [WritingAssignmentController::class, 'extractDocument'])->name('assignments.extract-document');
     Route::post('/assignments/{assignment}/revisions', [WritingAssignmentController::class, 'submit'])->name('assignments.revisions.store');
     Route::post('/revisions/{revision}/feedback/generate', [WritingAssignmentController::class, 'generateFeedback'])->middleware('throttle:3,1')->name('feedback.generate');

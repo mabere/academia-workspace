@@ -20,21 +20,34 @@ class WritingAssignmentPolicy
 
     public function update(User $user, WritingAssignment $assignment): bool
     {
-        return $this->manage($user, $assignment) && $assignment->project->archived_at === null;
+        return $this->manage($user, $assignment) && $assignment->project?->archived_at === null;
+    }
+
+    public function delete(User $user, WritingAssignment $assignment): bool
+    {
+        return $this->manage($user, $assignment) && $assignment->project?->archived_at === null;
     }
 
     public function submitRevision(User $user, WritingAssignment $assignment): bool
     {
         return $user->role === 'student'
             && $assignment->status === 'published'
-            && $assignment->project->archived_at === null
+            && $assignment->project?->archived_at === null
             && $assignment->students()->whereKey($user->id)->exists();
     }
 
     public function manage(User $user, WritingAssignment $assignment): bool
     {
+        if (in_array($user->role, ['admin', 'superadmin'], true)) {
+            return true;
+        }
+
+        if ($assignment->course_id && $assignment->course?->lecturer_id === $user->id) {
+            return true;
+        }
+
         return $user->isStaff() && (
-            $assignment->project->isOwnedBy($user) || $assignment->project->hasEditor($user)
+            $assignment->project?->isOwnedBy($user) || $assignment->project?->hasEditor($user)
         );
     }
 }

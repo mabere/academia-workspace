@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class WritingAssignmentController extends Controller
@@ -101,6 +102,33 @@ class WritingAssignmentController extends Controller
         });
 
         return back()->with('status', 'Tugas diperbarui dan versi baru tersimpan.');
+    }
+
+    public function destroy(Request $request, WritingAssignment $assignment): RedirectResponse
+    {
+        Gate::authorize('delete', $assignment);
+
+        $course = $assignment->course;
+        $project = $assignment->project;
+        $title = $assignment->title;
+
+        DB::transaction(function () use ($assignment) {
+            if (! empty($assignment->config_json['audio_file_path']) && Storage::disk('public')->exists($assignment->config_json['audio_file_path'])) {
+                Storage::disk('public')->delete($assignment->config_json['audio_file_path']);
+            }
+
+            $assignment->delete();
+        });
+
+        if ($course) {
+            return redirect()
+                ->route('courses.show', ['course' => $course, 'tab' => 'assignments'])
+                ->with('status', 'Tugas perkuliahan "'.$title.'" berhasil dihapus.');
+        }
+
+        return redirect()
+            ->route('projects.show', $project)
+            ->with('status', 'Tugas "'.$title.'" berhasil dihapus.');
     }
 
     public function show(WritingAssignment $assignment, AiGateway $gateway): View
