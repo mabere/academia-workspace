@@ -89,7 +89,7 @@ class CourseController extends Controller
             'materials.uploader',
             'sessions.attendances.student',
             'students.student.studyProgram',
-            'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with(['submissions.student', 'rubric']),
+            'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with(['submissions.student', 'rubric', 'questions']),
         ]);
 
         $enrolledStudentIds = $course->students->pluck('student_id')->all();

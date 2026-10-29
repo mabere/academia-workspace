@@ -15,14 +15,60 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class WritingSubmission extends Model
 {
-    protected $fillable = ['assignment_id', 'student_id', 'assignment_version_id', 'rubric_version_id', 'status', 'score', 'graded_by', 'graded_at'];
+    protected $fillable = [
+        'assignment_id',
+        'student_id',
+        'assignment_version_id',
+        'rubric_version_id',
+        'status',
+        'score',
+        'mcq_score',
+        'essay_score',
+        'started_at',
+        'submitted_at',
+        'graded_by',
+        'graded_at',
+    ];
 
     protected function casts(): array
     {
         return [
             'score' => 'float',
+            'mcq_score' => 'float',
+            'essay_score' => 'float',
+            'started_at' => 'datetime',
+            'submitted_at' => 'datetime',
             'graded_at' => 'datetime',
         ];
+    }
+
+    /** @return HasMany<AssignmentQuestionAnswer, $this> */
+    public function answers(): HasMany
+    {
+        return $this->hasMany(AssignmentQuestionAnswer::class, 'submission_id');
+    }
+
+    /**
+     * Hitung dan simpan nilai komposit akhir berdasarkan tipe tugas
+     */
+    public function calculateCompositeScore(): float
+    {
+        $assignment = $this->assignment;
+        $final = 0.0;
+
+        if ($assignment->isStimulusExam()) {
+            $final = (float) ($this->mcq_score ?? 0.0);
+        } elseif ($assignment->isHybrid()) {
+            $mcqPart = ((float) ($this->mcq_score ?? 0.0)) * ($assignment->mcq_weight_percentage / 100);
+            $essayPart = ((float) ($this->essay_score ?? 0.0)) * ($assignment->essay_weight_percentage / 100);
+            $final = round($mcqPart + $essayPart, 2);
+        } else {
+            $final = (float) ($this->essay_score ?? $this->score ?? 0.0);
+        }
+
+        $this->update(['score' => $final]);
+
+        return $final;
     }
 
     /** @return BelongsTo<User, $this> */

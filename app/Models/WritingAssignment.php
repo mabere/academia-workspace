@@ -23,11 +23,85 @@ use Illuminate\Support\Carbon;
  */
 class WritingAssignment extends Model
 {
-    protected $fillable = ['project_id', 'course_id', 'created_by', 'title', 'instructions', 'feedback_language', 'feedback_level', 'status', 'due_at'];
+    protected $fillable = [
+        'project_id',
+        'course_id',
+        'created_by',
+        'title',
+        'instructions',
+        'assignment_type',
+        'time_limit_minutes',
+        'mcq_weight_percentage',
+        'essay_weight_percentage',
+        'config_json',
+        'feedback_language',
+        'feedback_level',
+        'status',
+        'due_at',
+    ];
 
     protected function casts(): array
     {
-        return ['due_at' => 'datetime'];
+        return [
+            'due_at' => 'datetime',
+            'time_limit_minutes' => 'integer',
+            'mcq_weight_percentage' => 'integer',
+            'essay_weight_percentage' => 'integer',
+            'config_json' => 'array',
+        ];
+    }
+
+    public function isWriting(): bool
+    {
+        return ($this->assignment_type ?? 'writing') === 'writing';
+    }
+
+    public function isStimulusExam(): bool
+    {
+        return $this->assignment_type === 'stimulus_exam';
+    }
+
+    public function isHybrid(): bool
+    {
+        return $this->assignment_type === 'hybrid';
+    }
+
+    public function isTranslation(): bool
+    {
+        return $this->assignment_type === 'translation';
+    }
+
+    public function isMilestone(): bool
+    {
+        return $this->assignment_type === 'milestone_artifact';
+    }
+
+    public function typeLabel(): string
+    {
+        return match ($this->assignment_type) {
+            'stimulus_exam' => 'Ujian Stimulus / Listening',
+            'hybrid' => 'Penilaian Campuran (PG + Esai)',
+            'translation' => 'Penerjemahan Teks',
+            'milestone_artifact' => 'Proposal & Proyek Bertahap',
+            default => 'Esai Akademik (WriteWise)',
+        };
+    }
+
+    public function typeBadgeColor(): string
+    {
+        return match ($this->assignment_type) {
+            'stimulus_exam' => 'bg-amber-100 text-amber-800 border-amber-300',
+            'hybrid' => 'bg-indigo-100 text-indigo-800 border-indigo-300',
+            'translation' => 'bg-purple-100 text-purple-800 border-purple-300',
+            'milestone_artifact' => 'bg-rose-100 text-rose-800 border-rose-300',
+            default => 'bg-teal-100 text-teal-800 border-teal-300',
+        };
+    }
+
+    /** @return HasMany<AssignmentQuestion, $this> */
+    public function questions(): HasMany
+    {
+        return $this->hasMany(AssignmentQuestion::class, 'assignment_id')->orderBy('order');
     }
 
     /** @return BelongsTo<Course, $this> */

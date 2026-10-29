@@ -24,13 +24,25 @@ class CourseAssignmentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'instructions' => ['required', 'string', 'max:10000'],
+            'assignment_type' => ['nullable', 'string', 'in:writing,stimulus_exam,hybrid,translation,milestone_artifact'],
+            'time_limit_minutes' => ['nullable', 'integer', 'min:5', 'max:360'],
+            'mcq_weight_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'essay_weight_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a', 'max:51200'],
+            'audio_max_plays' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'reading_passage' => ['nullable', 'string', 'max:20000'],
+            'source_text' => ['nullable', 'string', 'max:20000'],
+            'source_language' => ['nullable', 'string', 'max:60'],
+            'target_language' => ['nullable', 'string', 'max:60'],
             'due_at' => ['nullable', 'date'],
             'feedback_language' => ['nullable', 'string', 'in:id,en'],
             'feedback_level' => ['nullable', 'string', 'in:direct,indirect,balanced'],
             'rubric_name' => ['nullable', 'string', 'max:120'],
         ]);
 
-        DB::transaction(function () use ($course, $data) {
+        $createdAssignment = null;
+
+        DB::transaction(function () use ($course, $data, $request, &$createdAssignment) {
             // Temukan atau buat wadah Proyek Tri Dharma untuk mata kuliah ini
             $project = Project::firstOrCreate(
                 [
@@ -45,16 +57,39 @@ class CourseAssignmentController extends Controller
                 ]
             );
 
+            $configJson = [];
+            if ($request->hasFile('audio_file')) {
+                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'public');
+                $configJson['audio_max_plays'] = isset($data['audio_max_plays']) ? (int) $data['audio_max_plays'] : 2;
+            }
+            if (! empty($data['reading_passage'])) {
+                $configJson['reading_passage'] = trim($data['reading_passage']);
+            }
+            if (! empty($data['source_text'])) {
+                $configJson['source_text'] = trim($data['source_text']);
+                $configJson['source_language'] = $data['source_language'] ?? 'id';
+                $configJson['target_language'] = $data['target_language'] ?? 'en';
+            }
+
+            $assignmentType = $data['assignment_type'] ?? 'writing';
+
             $assignment = $course->assignments()->create([
                 'project_id' => $project->id,
                 'created_by' => Auth::id(),
                 'title' => $data['title'],
                 'instructions' => $data['instructions'],
+                'assignment_type' => $assignmentType,
+                'time_limit_minutes' => ! empty($data['time_limit_minutes']) ? (int) $data['time_limit_minutes'] : null,
+                'mcq_weight_percentage' => (int) ($data['mcq_weight_percentage'] ?? 30),
+                'essay_weight_percentage' => (int) ($data['essay_weight_percentage'] ?? 70),
+                'config_json' => ! empty($configJson) ? $configJson : null,
                 'feedback_language' => $data['feedback_language'] ?? 'id',
                 'feedback_level' => $data['feedback_level'] ?? 'indirect',
                 'status' => 'published',
                 'due_at' => $data['due_at'] ?? null,
             ]);
+
+            $createdAssignment = $assignment;
 
             // Daftarkan semua mahasiswa kelas ke tugas ini secara otomatis
             $studentIds = $course->students()->pluck('student_id')->all();
@@ -97,15 +132,19 @@ class CourseAssignmentController extends Controller
                 if ($cs->student) {
                     $cs->student->notify(new AcademicNotification(
                         title: 'Tugas Perkuliahan Baru',
-                        message: "Dosen telah menerbitkan tugas \"{$assignment->title}\" pada mata kuliah {$course->name}.",
+                        message: "Dosen telah menerbitkan tugas \"{$assignment->title}\" ({$assignment->typeLabel()}) pada mata kuliah {$course->name}.",
                         actionUrl: route('courses.show', ['course' => $course, 'tab' => 'assignments']),
                         icon: 'assignment',
                         category: 'assignment',
-                        meta: ['course_id' => $course->id, 'assignment_id' => $assignment->id]
+                        meta: ['course_id' => $course->id, 'assignment_id' => $assignment->id, 'assignment_type' => $assignment->assignment_type]
                     ));
                 }
             }
         });
+
+        if ($createdAssignment && in_array($createdAssignment->assignment_type, ['stimulus_exam', 'hybrid'])) {
+            return redirect()->route('assignments.questions.index', $createdAssignment)->with('status', 'Tugas format '.$createdAssignment->typeLabel().' berhasil diterbitkan. Silakan tambahkan butir-butir pertanyaan di bawah.');
+        }
 
         return back()->with('status', 'Tugas perkuliahan "'.$data['title'].'" berhasil diterbitkan untuk seluruh mahasiswa kelas.');
     }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AcademicStructureController;
+use App\Http\Controllers\AssignmentExamController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BkdAssessmentController;
@@ -171,4 +172,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/revisions/{revision}/feedback', [WritingAssignmentController::class, 'createFeedback'])->name('feedback.store');
     Route::patch('/feedback/{report}', [WritingAssignmentController::class, 'editFeedback'])->name('feedback.update');
     Route::post('/feedback/{report}/publish', [WritingAssignmentController::class, 'publishFeedback'])->name('feedback.publish');
+
+    // Penilaian Akademik Multimoda: Ujian Stimulus Listening/Reading & Hybrid Assessment
+    Route::get('/assignments/{assignment}/questions', [AssignmentExamController::class, 'manageQuestions'])->name('assignments.questions.index');
+    Route::post('/assignments/{assignment}/questions', [AssignmentExamController::class, 'storeQuestion'])->name('assignments.questions.store');
+    Route::delete('/assignments/{assignment}/questions/{question}', [AssignmentExamController::class, 'destroyQuestion'])->name('assignments.questions.destroy');
+    Route::get('/assignments/{assignment}/audio-stream', [AssignmentExamController::class, 'streamAudio'])->name('assignments.audio-stream');
+    Route::get('/assignments/{assignment}/exam', [AssignmentExamController::class, 'take'])->name('assignments.exam.take');
+    Route::post('/assignments/{assignment}/exam', [AssignmentExamController::class, 'submitExam'])->name('assignments.exam.submit');
 });

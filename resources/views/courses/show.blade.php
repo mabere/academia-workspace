@@ -928,29 +928,111 @@
 
             {{-- Form Terbitkan Tugas Baru (Dosen Pengampu) --}}
             @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || auth()->user()->role === 'admin'))
-                <details class="group rounded-2xl border border-teal-200 bg-teal-50/40 p-5 transition">
+                <details class="group rounded-2xl border border-teal-200 bg-teal-50/40 p-5 transition" x-data="{ assignmentType: 'writing' }">
                     <summary class="flex cursor-pointer items-center justify-between font-bold text-teal-900">
                         <span class="flex items-center gap-2">
                             <svg class="h-5 w-5 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            Terbitkan Tugas Perkuliahan Baru (WriteWise AI)
+                            Terbitkan Tugas Perkuliahan Baru (Multimoda & WriteWise)
                         </span>
                         <span class="rounded-lg bg-teal-700 px-3 py-1 text-xs text-white group-open:bg-teal-800">
                             + Buka Formulir
                         </span>
                     </summary>
 
-                    <form method="post" action="{{ route('courses.assignments.store', $course) }}" class="mt-4 space-y-4 border-t border-teal-200 pt-4">
+                    <form method="post" action="{{ route('courses.assignments.store', $course) }}" enctype="multipart/form-data" class="mt-4 space-y-4 border-t border-teal-200 pt-4">
                         @csrf
+
+                        {{-- Pemilihan Format Tugas --}}
+                        <div class="rounded-xl bg-white p-4 border border-teal-200 shadow-xs">
+                            <label class="block text-xs font-bold text-slate-800 mb-1.5">Pilih Format & Model Penugasan *</label>
+                            <div class="grid gap-2.5 sm:grid-cols-3">
+                                <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
+                                    :class="assignmentType === 'writing' ? 'border-teal-700 bg-teal-50/60 ring-1 ring-teal-700' : 'border-slate-200 hover:bg-slate-50'">
+                                    <input type="radio" name="assignment_type" value="writing" x-model="assignmentType" class="mt-0.5 text-teal-700 focus:ring-teal-700">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-900">Esai Akademik (WriteWise)</p>
+                                        <p class="text-[11px] text-slate-500">Esai analitis, draf bertahap, rubrik CPMK & umpan balik AI.</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
+                                    :class="assignmentType === 'stimulus_exam' ? 'border-amber-600 bg-amber-50/60 ring-1 ring-amber-600' : 'border-slate-200 hover:bg-slate-50'">
+                                    <input type="radio" name="assignment_type" value="stimulus_exam" x-model="assignmentType" class="mt-0.5 text-amber-600 focus:ring-amber-600">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-900">Ujian Stimulus / Listening</p>
+                                        <p class="text-[11px] text-slate-500">Audio listening, batas putar terkendali & soal PG dinilai otomatis.</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition"
+                                    :class="assignmentType === 'hybrid' ? 'border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-600' : 'border-slate-200 hover:bg-slate-50'">
+                                    <input type="radio" name="assignment_type" value="hybrid" x-model="assignmentType" class="mt-0.5 text-indigo-600 focus:ring-indigo-600">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-900">Penilaian Campuran (MKDU)</p>
+                                        <p class="text-[11px] text-slate-500">Seksi 1: PG (otomatis) + Seksi 2: Studi Kasus/Esai (rubrik).</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-semibold text-slate-700">Judul Tugas Perkuliahan *</label>
-                                <input type="text" name="title" required placeholder="Contoh: Esai Kritis: Perbandingan Teori Pembelajaran Bahasa" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                                <input type="text" name="title" required placeholder="Contoh: Academic Lecture Listening Section 1 atau Esai Kritis Sosiolinguistik" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700">Batas Waktu Pengumpulan (Deadline)</label>
                                 <input type="datetime-local" name="due_at" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                            </div>
+                        </div>
+
+                        {{-- Pengaturan Khusus Format Stimulus / Listening --}}
+                        <div x-show="assignmentType === 'stimulus_exam'" class="rounded-xl bg-amber-50/80 p-4 border border-amber-200 space-y-3">
+                            <p class="text-xs font-bold text-amber-950">Konfigurasi Ujian Stimulus / Listening:</p>
+                            <div class="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-900">Unggah Berkas Audio (MP3/WAV/M4A)</label>
+                                    <input type="file" name="audio_file" accept="audio/*" class="mt-1 w-full text-xs text-slate-700 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-700 file:text-white hover:file:bg-amber-800">
+                                    <p class="mt-1 text-[10px] text-amber-700">Maks 50 MB (Rekaman kuliah, seminar, dialog).</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-900">Batas Pemutaran Audio (Play Limit)</label>
+                                    <select name="audio_max_plays" class="mt-1 w-full rounded-lg border-amber-300 text-xs focus:border-amber-700 focus:ring-amber-700">
+                                        <option value="1">1 kali (Standar Ujian TOEFL Ketat)</option>
+                                        <option value="2" selected>2 kali (Standar Kuliah Reguler)</option>
+                                        <option value="3">3 kali</option>
+                                        <option value="0">Bebas (Latihan Mandiri Tanpa Batas)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-900">Batas Waktu Pengerjaan (Menit)</label>
+                                    <input type="number" name="time_limit_minutes" value="45" min="5" max="360" class="mt-1 w-full rounded-lg border-amber-300 text-xs focus:border-amber-700 focus:ring-amber-700">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-amber-900">Teks Stimulus Bacaan / Transkrip Materi (Opsional)</label>
+                                <textarea name="reading_passage" rows="3" placeholder="Jika ada naskah artikel, puisi, atau studi kasus pendamping..." class="mt-1 w-full rounded-lg border-amber-300 text-xs focus:border-amber-700 focus:ring-amber-700"></textarea>
+                            </div>
+                        </div>
+
+                        {{-- Pengaturan Khusus Format Hybrid --}}
+                        <div x-show="assignmentType === 'hybrid'" class="rounded-xl bg-indigo-50/80 p-4 border border-indigo-200 space-y-3">
+                            <p class="text-xs font-bold text-indigo-950">Konfigurasi Penilaian Campuran (Hybrid Assessment):</p>
+                            <div class="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-indigo-900">Bobot Pilihan Ganda (%)</label>
+                                    <input type="number" name="mcq_weight_percentage" value="30" min="0" max="100" class="mt-1 w-full rounded-lg border-indigo-300 text-xs focus:border-indigo-700 focus:ring-indigo-700">
+                                    <p class="mt-1 text-[10px] text-indigo-700">Dinilai otomatis oleh sistem.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-indigo-900">Bobot Esai / Kasus (%)</label>
+                                    <input type="number" name="essay_weight_percentage" value="70" min="0" max="100" class="mt-1 w-full rounded-lg border-indigo-300 text-xs focus:border-indigo-700 focus:ring-indigo-700">
+                                    <p class="mt-1 text-[10px] text-indigo-700">Dinilai oleh dosen dengan rubrik.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-indigo-900">Durasi Pengerjaan (Menit)</label>
+                                    <input type="number" name="time_limit_minutes" value="60" min="5" max="360" class="mt-1 w-full rounded-lg border-indigo-300 text-xs focus:border-indigo-700 focus:ring-indigo-700">
+                                </div>
                             </div>
                         </div>
 
@@ -983,8 +1065,8 @@
                         </div>
 
                         <div class="flex justify-end pt-2">
-                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-700 transition">
-                                Terbitkan Tugas ke Seluruh Mahasiswa
+                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-700 transition shadow">
+                                Terbitkan Tugas & Lanjut &rarr;
                             </button>
                         </div>
                     </form>
@@ -1002,26 +1084,65 @@
                         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-300 transition">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="text-base font-bold text-slate-900">
-                                            <a href="{{ route('assignments.show', $assignment) }}" class="hover:text-teal-800">
-                                                {{ $assignment->title }}
-                                            </a>
+                                            @if($assignment->isStimulusExam() || $assignment->isHybrid())
+                                                <a href="{{ route('assignments.exam.take', $assignment) }}" class="hover:text-teal-800">
+                                                    {{ $assignment->title }}
+                                                </a>
+                                            @else
+                                                <a href="{{ route('assignments.show', $assignment) }}" class="hover:text-teal-800">
+                                                    {{ $assignment->title }}
+                                                </a>
+                                            @endif
                                         </h3>
+                                        <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold border {{ $assignment->typeBadgeColor() }}">
+                                            {{ $assignment->typeLabel() }}
+                                        </span>
                                         <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                                             {{ $assignment->status }}
                                         </span>
                                     </div>
-                                    @if($assignment->due_at)
-                                        <p class="mt-1 text-xs text-amber-700 font-medium">
-                                            Batas Waktu: {{ $assignment->due_at->translatedFormat('d F Y, H:i') }}
-                                        </p>
-                                    @endif
+                                    <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                        @if($assignment->due_at)
+                                            <span class="text-amber-700 font-medium">
+                                                Batas Waktu: {{ $assignment->due_at->translatedFormat('d F Y, H:i') }}
+                                            </span>
+                                        @endif
+                                        @if($assignment->isStimulusExam() || $assignment->isHybrid())
+                                            <span>·</span>
+                                            <span class="font-semibold text-slate-700">
+                                                {{ $assignment->questions->count() }} Butir Soal
+                                            </span>
+                                            @if($assignment->time_limit_minutes)
+                                                <span>·</span>
+                                                <span class="text-slate-600">
+                                                    Durasi: {{ $assignment->time_limit_minutes }} Menit
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <a href="{{ route('assignments.show', $assignment) }}" class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900">
-                                        Buka di WriteWise &rarr;
-                                    </a>
+                                    @if($assignment->isStimulusExam() || $assignment->isHybrid())
+                                        @if(auth()->user()->isStaff())
+                                            <a href="{{ route('assignments.questions.index', $assignment) }}"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs">
+                                                <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                </svg>
+                                                Kelola Soal ({{ $assignment->questions->count() }})
+                                            </a>
+                                        @endif
+                                        <a href="{{ route('assignments.exam.take', $assignment) }}"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-teal-800 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs">
+                                            {{ auth()->user()->isStaff() ? 'Pratinjau Ujian &rarr;' : 'Kerjakan Ujian &rarr;' }}
+                                        </a>
+                                    @else
+                                        <a href="{{ route('assignments.show', $assignment) }}" class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900">
+                                            Buka di WriteWise &rarr;
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
 
