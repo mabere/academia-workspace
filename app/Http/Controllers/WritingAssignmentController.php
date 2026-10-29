@@ -11,6 +11,7 @@ use App\Models\WritingAssignment;
 use App\Models\WritingFeedbackReport;
 use App\Models\WritingRevision;
 use App\Models\WritingSubmission;
+use App\Notifications\AcademicNotification;
 use App\Services\Ai\AiGateway;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -138,6 +139,19 @@ class WritingAssignmentController extends Controller
                 'submitted_at' => now(),
             ]);
             $submission->update(['status' => 'submitted']);
+
+            // Beri notifikasi ke dosen pengampu jika tugas terhubung dengan mata kuliah
+            if ($assignment->course && $assignment->course->lecturer) {
+                $studentUser = Auth::user();
+                $assignment->course->lecturer->notify(new AcademicNotification(
+                    title: 'Submisi Draf Tugas Baru',
+                    message: "Mahasiswa {$studentUser->name} telah mengumpulkan draf untuk tugas \"{$assignment->title}\" ({$assignment->course->name}).",
+                    actionUrl: route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']),
+                    icon: 'assignment',
+                    category: 'assignment',
+                    meta: ['course_id' => $assignment->course_id, 'assignment_id' => $assignment->id, 'student_id' => $studentUser->id]
+                ));
+            }
         });
 
         return back()->with('status', 'Revisi tersimpan sebagai versi baru.');

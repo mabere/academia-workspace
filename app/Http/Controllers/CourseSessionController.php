@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCourseSessionRequest;
 use App\Models\Course;
 use App\Models\CourseSession;
 use App\Models\CourseSessionAttendance;
+use App\Notifications\AcademicNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -88,6 +89,21 @@ class CourseSessionController extends Controller
             ]
         );
 
+        // Notifikasi ke seluruh mahasiswa kelas bahwa presensi sesi telah dibuka
+        $enrolledStudents = $course->students()->with('student')->get();
+        foreach ($enrolledStudents as $cs) {
+            if ($cs->student) {
+                $cs->student->notify(new AcademicNotification(
+                    title: "Presensi Sesi Dibuka (Kode: {$passcode})",
+                    message: "Presensi Pertemuan Ke-{$session->session_number} ({$course->name}) sedang dibuka di kelas. Segera masukkan kode presensi.",
+                    actionUrl: route('courses.show', ['course' => $course, 'tab' => 'sessions']),
+                    icon: 'attendance',
+                    category: 'attendance',
+                    meta: ['course_id' => $course->id, 'session_id' => $session->id, 'passcode' => $passcode]
+                ));
+            }
+        }
+
         return redirect()
             ->route('courses.show', ['course' => $course, 'tab' => 'sessions'])
             ->with('status', "Presensi Pertemuan Ke-{$session->session_number} berhasil dibuka! Kode: {$passcode} (aktif {$duration} menit).");
@@ -114,6 +130,21 @@ class CourseSessionController extends Controller
             'is_attendance_open' => true,
             'total_students' => $course->students()->count() ?: 1,
         ]);
+
+        // Notifikasi ke seluruh mahasiswa kelas bahwa presensi sesi telah dibuka
+        $enrolledStudents = $course->students()->with('student')->get();
+        foreach ($enrolledStudents as $cs) {
+            if ($cs->student) {
+                $cs->student->notify(new AcademicNotification(
+                    title: "Presensi Sesi Dibuka (Kode: {$passcode})",
+                    message: "Presensi Pertemuan Ke-{$session->session_number} ({$course->name}) sedang dibuka di kelas. Segera masukkan kode presensi.",
+                    actionUrl: route('courses.show', ['course' => $course, 'tab' => 'sessions']),
+                    icon: 'attendance',
+                    category: 'attendance',
+                    meta: ['course_id' => $course->id, 'session_id' => $session->id, 'passcode' => $passcode]
+                ));
+            }
+        }
 
         return redirect()
             ->route('courses.show', ['course' => $course, 'tab' => 'sessions'])

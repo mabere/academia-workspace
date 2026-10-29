@@ -7,6 +7,7 @@ use App\Models\CourseStudent;
 use App\Models\Project;
 use App\Models\WritingAssignment;
 use App\Models\WritingSubmission;
+use App\Notifications\AcademicNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -89,6 +90,21 @@ class CourseAssignmentController extends Controller
                 'scale_max' => 5,
                 'criteria' => $criteria,
             ]);
+
+            // Kirim notifikasi tugas baru ke seluruh mahasiswa yang terdaftar di kelas
+            $enrolledStudents = $course->students()->with('student')->get();
+            foreach ($enrolledStudents as $cs) {
+                if ($cs->student) {
+                    $cs->student->notify(new AcademicNotification(
+                        title: 'Tugas Perkuliahan Baru',
+                        message: "Dosen telah menerbitkan tugas \"{$assignment->title}\" pada mata kuliah {$course->name}.",
+                        actionUrl: route('courses.show', ['course' => $course, 'tab' => 'assignments']),
+                        icon: 'assignment',
+                        category: 'assignment',
+                        meta: ['course_id' => $course->id, 'assignment_id' => $assignment->id]
+                    ));
+                }
+            }
         });
 
         return back()->with('status', 'Tugas perkuliahan "'.$data['title'].'" berhasil diterbitkan untuk seluruh mahasiswa kelas.');
@@ -104,7 +120,7 @@ class CourseAssignmentController extends Controller
             'criteria_scores' => ['nullable', 'array'],
         ]);
 
-        DB::transaction(function () use ($course, $submission, $data) {
+        DB::transaction(function () use ($course, $assignment, $submission, $data) {
             $submission->update([
                 'score' => $data['score'],
                 'graded_by' => Auth::id(),
@@ -143,6 +159,18 @@ class CourseAssignmentController extends Controller
 
             // Hitung ulang akumulasi nilai akhir mahasiswa pada kelas ini
             $this->recalculateCourseStudentGrade($course, $submission->student_id);
+
+            // Kirim notifikasi hasil penilaian ke akun mahasiswa
+            if ($submission->student) {
+                $submission->student->notify(new AcademicNotification(
+                    title: 'Nilai & Evaluasi Tugas Dirilis',
+                    message: "Draf tugas Anda untuk \"{$assignment->title}\" ({$course->name}) telah dinilai dosen. Nilai: {$data['score']}/100.",
+                    actionUrl: route('courses.show', ['course' => $course, 'tab' => 'assignments']),
+                    icon: 'grade',
+                    category: 'grade',
+                    meta: ['course_id' => $course->id, 'assignment_id' => $assignment->id, 'score' => $data['score']]
+                ));
+            }
         });
 
         return back()->with('status', 'Nilai ('.$data['score'].') dan umpan balik tugas berhasil disimpan.');

@@ -58,6 +58,100 @@
                                 <span>Dashboard</span>
                             </a>
                         @endif
+
+                        {{-- Dropdown Bell Notifikasi --}}
+                        @php
+                            $userUnreadCount = auth()->user()->unreadNotifications()->count();
+                            $recentNotifications = auth()->user()->notifications()->latest()->take(5)->get();
+                        @endphp
+                        <div class="relative" x-data="{ bellOpen: false }">
+                            <button type="button" @click="bellOpen = !bellOpen" @click.away="bellOpen = false"
+                                class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-teal-700"
+                                aria-label="Notifikasi">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                </svg>
+                                @if($userUnreadCount > 0)
+                                    <span class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white shadow-xs animate-pulse">
+                                        {{ $userUnreadCount > 9 ? '9+' : $userUnreadCount }}
+                                    </span>
+                                @endif
+                            </button>
+
+                            <div x-show="bellOpen" x-cloak
+                                class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden text-slate-800">
+                                
+                                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-slate-900 text-xs">Notifikasi</span>
+                                        @if($userUnreadCount > 0)
+                                            <span class="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                                                {{ $userUnreadCount }} Baru
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if($userUnreadCount > 0)
+                                        <form method="post" action="{{ route('notifications.mark-all-read') }}">
+                                            @csrf
+                                            <button type="submit" class="text-[11px] font-semibold text-teal-800 hover:text-teal-900">
+                                                Tandai semua dibaca
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                <div class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                                    @forelse($recentNotifications as $notif)
+                                        @php
+                                            $isUnread = $notif->read_at === null;
+                                            $data = $notif->data;
+                                        @endphp
+                                        <a href="{{ route('notifications.read', ['id' => $notif->id]) }}"
+                                            class="block p-3 hover:bg-slate-50 transition {{ $isUnread ? 'bg-teal-50/40' : '' }}">
+                                            <div class="flex items-start gap-3">
+                                                <div class="h-7 w-7 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold
+                                                    {{ ($data['icon'] ?? '') === 'grade' ? 'bg-amber-100 text-amber-800' : (($data['icon'] ?? '') === 'attendance' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800') }}">
+                                                    @if(($data['icon'] ?? '') === 'grade')
+                                                        ★
+                                                    @elseif(($data['icon'] ?? '') === 'attendance')
+                                                        ✓
+                                                    @else
+                                                        ✎
+                                                    @endif
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <span class="text-xs font-bold truncate {{ $isUnread ? 'text-teal-950 font-extrabold' : 'text-slate-800' }}">
+                                                            {{ $data['title'] ?? 'Pemberitahuan' }}
+                                                        </span>
+                                                        <span class="text-[10px] text-slate-400 shrink-0">
+                                                            {{ $notif->created_at->diffForHumans(null, true) }}
+                                                        </span>
+                                                    </div>
+                                                    <p class="text-[11px] text-slate-600 line-clamp-2 mt-0.5 leading-snug">
+                                                        {{ $data['message'] ?? '' }}
+                                                    </p>
+                                                </div>
+                                                @if($isUnread)
+                                                    <span class="h-2 w-2 rounded-full bg-teal-600 shrink-0 mt-1"></span>
+                                                @endif
+                                            </div>
+                                        </a>
+                                    @empty
+                                        <div class="p-6 text-center text-xs text-slate-400">
+                                            Tidak ada notifikasi saat ini.
+                                        </div>
+                                    @endforelse
+                                </div>
+
+                                <div class="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center">
+                                    <a href="{{ route('notifications.index') }}" class="text-xs font-bold text-teal-800 hover:text-teal-900">
+                                        Lihat Seluruh Notifikasi &rarr;
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
                         <a href="{{ route('profile.edit') }}"
                             class="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-slate-50"
                             aria-label="Edit profil {{ auth()->user()->name }}">
@@ -122,6 +216,23 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
                             </svg><span data-sidebar-label>Mata Kuliah</span>
+                        </a>
+                        <a href="{{ route('notifications.index') }}"
+                            @if (request()->routeIs('notifications.*')) aria-current="page" @endif title="Notifikasi"
+                            class="sidebar-link {{ request()->routeIs('notifications.*') ? 'sidebar-link-active' : '' }}">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                            </svg>
+                            <span data-sidebar-label class="flex items-center justify-between w-full">
+                                <span>Notifikasi</span>
+                                @if(auth()->user()->unreadNotifications()->count() > 0)
+                                    <span class="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                                        {{ auth()->user()->unreadNotifications()->count() }}
+                                    </span>
+                                @endif
+                            </span>
                         </a>
                         @if (auth()->user()->isStaff())
                             <a href="{{ route('students.index') }}"
