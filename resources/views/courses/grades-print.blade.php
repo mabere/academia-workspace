@@ -201,9 +201,19 @@
         <a href="{{ route('courses.show', $course) }}" class="btn btn-outline">
             &larr; Kembali ke Ruang Mata Kuliah
         </a>
-        <button onclick="window.print()" class="btn btn-primary">
-            Cetak / Simpan PDF (Ctrl+P)
-        </button>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            @if(auth()->user()->isStaff())
+                <a href="{{ route('courses.grades.export', $course) }}" class="btn btn-outline" style="border-color: #059669; color: #065f46; background: #ecfdf5;">
+                    <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Unduh CSV / Excel
+                </a>
+            @endif
+            <button onclick="window.print()" class="btn btn-primary">
+                Cetak / Simpan PDF (Ctrl+P)
+            </button>
+        </div>
     </div>
 
     <div class="page-container">

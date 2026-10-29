@@ -102,6 +102,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/courses/{course}/assignments', [CourseAssignmentController::class, 'store'])->name('courses.assignments.store');
     Route::post('/courses/{course}/assignments/{assignment}/submissions/{submission}/grade', [CourseAssignmentController::class, 'grade'])->name('courses.assignments.grade');
     Route::get('/courses/{course}/grades/print', [CourseAssignmentController::class, 'printGrades'])->name('courses.grades.print');
+    Route::get('/courses/{course}/grades/export', [CourseAssignmentController::class, 'exportGrades'])->name('courses.grades.export');
 
     Route::post('/courses/{course}/students', [CourseStudentController::class, 'enroll'])->name('courses.students.enroll');
     Route::patch('/courses/{course}/students/{courseStudent}', [CourseStudentController::class, 'update'])->name('courses.students.update');

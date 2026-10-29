@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CourseAssignmentController extends Controller
 {
@@ -116,7 +117,7 @@ class CourseAssignmentController extends Controller
             if ($latestRevision) {
                 $feedbackReport = $latestRevision->feedbackReports()->first();
                 $payload = [
-                    'overall_summary' => $data['feedback_notes'] ?: 'Penilaian dan umpan balik tugas oleh dosen pengampu.',
+                    'overall_summary' => ($data['feedback_notes'] ?? null) ?: 'Penilaian dan umpan balik tugas oleh dosen pengampu.',
                     'score' => $data['score'],
                     'criteria_scores' => $data['criteria_scores'] ?? [],
                     'evaluated_by' => Auth::user()->name,
@@ -168,6 +169,125 @@ class CourseAssignmentController extends Controller
             'assignments' => $course->assignments,
             'lecturer' => $course->lecturer,
             'profile' => $course->lecturer->lecturerProfile,
+        ]);
+    }
+
+    public function exportGrades(Request $request, Course $course): StreamedResponse
+    {
+        abort_unless($request->user()->isStaff() && ($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true)), 403, 'Akses ekspor nilai hanya untuk dosen pengampu dan administrator.');
+
+        $course->load([
+            'academicPeriod',
+            'studyProgram.faculty',
+            'lecturer.lecturerProfile',
+            'assignments.submissions',
+            'students.student.studyProgram',
+        ]);
+
+        $assignments = $course->assignments;
+        $students = $course->students;
+
+        $safeClass = str_replace(['/', '\\', ' '], '-', $course->class_group ?: 'A');
+        $safeCode = str_replace(['/', '\\', ' '], '-', $course->code);
+        $filename = "rekap-nilai-{$safeCode}-{$safeClass}-".now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($course, $assignments, $students) {
+            $handle = fopen('php://output', 'w');
+
+            // Tulis UTF-8 BOM agar Microsoft Excel di Windows/Mac otomatis mengenali encoding dengan tepat
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            // Baris Metadata Perkuliahan
+            fputcsv($handle, ['REKAPITULASI EVALUASI & NILAI AKHIR MAHASISWA']);
+            fputcsv($handle, ['Mata Kuliah', $course->code.' - '.$course->name.' ('.($course->class_group ?: 'A').')']);
+            fputcsv($handle, ['Program Studi', ($course->studyProgram?->name ?? '-').' ('.($course->studyProgram?->faculty?->name ?? '-').')']);
+            fputcsv($handle, ['Semester / Periode', $course->academicPeriod?->name ?? '-']);
+            fputcsv($handle, ['Bobot SKS', $course->credit_hours.' SKS']);
+            fputcsv($handle, ['Dosen Pengampu', $course->lecturer->name.($course->lecturer->lecturerProfile?->nidn ? ' (NIDN: '.$course->lecturer->lecturerProfile->nidn.')' : '')]);
+            fputcsv($handle, ['Waktu Ekspor', now()->translatedFormat('d F Y, H:i:s')]);
+            fputcsv($handle, []);
+
+            // Baris Header Kolom Tabel
+            $headers = ['No', 'NIM', 'Nama Mahasiswa', 'Program Studi', 'Angkatan'];
+            foreach ($assignments as $idx => $assignment) {
+                $headers[] = 'T'.($idx + 1).': '.$assignment->title;
+            }
+            $headers[] = 'Presensi Kehadiran (%)';
+            $headers[] = 'Nilai Akhir (0-100)';
+            $headers[] = 'Huruf Mutu';
+            $headers[] = 'Status Kelulusan';
+            fputcsv($handle, $headers);
+
+            // Baris Data Mahasiswa
+            $gradedCount = 0;
+            $passedCount = 0;
+            $totalScore = 0;
+            $maxScore = null;
+            $minScore = null;
+
+            foreach ($students as $idx => $cs) {
+                $studentUser = $cs->student;
+                $row = [
+                    $idx + 1,
+                    '="'.($cs->nim ?: ($studentUser->nim ?: '-')).'"',
+                    $studentUser->name,
+                    $studentUser->studyProgram?->code ?: ($course->studyProgram?->code ?: '-'),
+                    $studentUser->cohort_year ?: '-',
+                ];
+
+                foreach ($assignments as $assignment) {
+                    $sub = $assignment->submissions->firstWhere('student_id', $cs->student_id);
+                    if ($sub && $sub->score !== null) {
+                        $row[] = number_format($sub->score, 1, '.', '');
+                    } elseif ($sub) {
+                        $row[] = 'Draft';
+                    } else {
+                        $row[] = '-';
+                    }
+                }
+
+                $row[] = number_format($cs->attendance_rate, 1, '.', '').'%';
+
+                if ($cs->final_grade !== null) {
+                    $row[] = number_format($cs->final_grade, 1, '.', '');
+                    $gradedCount++;
+                    $totalScore += $cs->final_grade;
+                    $maxScore = $maxScore === null ? $cs->final_grade : max($maxScore, $cs->final_grade);
+                    $minScore = $minScore === null ? $cs->final_grade : min($minScore, $cs->final_grade);
+                } else {
+                    $row[] = '-';
+                }
+
+                $row[] = $cs->letter_grade ?: '-';
+
+                if ($cs->final_grade !== null) {
+                    $isPassed = $cs->final_grade >= 55.0;
+                    if ($isPassed) {
+                        $passedCount++;
+                    }
+                    $row[] = $isPassed ? 'LULUS' : 'TIDAK LULUS';
+                } else {
+                    $row[] = 'BELUM DINILAI';
+                }
+
+                fputcsv($handle, $row);
+            }
+
+            // Ringkasan Statistik Kelas
+            fputcsv($handle, []);
+            fputcsv($handle, ['RINGKASAN STATISTIK KELAS']);
+            fputcsv($handle, ['Total Mahasiswa Terdaftar', $students->count().' Orang']);
+            fputcsv($handle, ['Mahasiswa Sudah Dinilai', $gradedCount.' Orang']);
+            fputcsv($handle, ['Rata-rata Nilai Kelas', $gradedCount > 0 ? number_format($totalScore / $gradedCount, 1, '.', '') : '-']);
+            fputcsv($handle, ['Nilai Tertinggi', $maxScore !== null ? number_format($maxScore, 1, '.', '') : '-']);
+            fputcsv($handle, ['Nilai Terendah', $minScore !== null ? number_format($minScore, 1, '.', '') : '-']);
+            fputcsv($handle, ['Jumlah Mahasiswa Lulus', $passedCount.' Orang']);
+            fputcsv($handle, ['Tingkat Kelulusan', $gradedCount > 0 ? number_format(($passedCount / $gradedCount) * 100, 1, '.', '').'%' : '-']);
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 

@@ -290,4 +290,52 @@ class CourseGradingTest extends TestCase
         ]);
         $createAssignmentResponse->assertForbidden();
     }
+
+    public function test_lecturer_can_export_grades_as_csv_spreadsheet(): void
+    {
+        $this->actingAs($this->lecturer)->post(route('courses.assignments.store', $this->course), [
+            'title' => 'Tugas Esai Final',
+            'instructions' => 'Instruksi esai final.',
+        ]);
+
+        $assignment = WritingAssignment::where('course_id', $this->course->id)->firstOrFail();
+
+        // Mahasiswa submit revisi
+        $this->actingAs($this->student1)->post(route('assignments.revisions.store', $assignment), [
+            'body_text' => 'Ini draf esai final mahasiswa untuk dinilai.',
+        ]);
+
+        $sub = WritingSubmission::where('assignment_id', $assignment->id)->where('student_id', $this->student1->id)->firstOrFail();
+
+        $gradeRes = $this->actingAs($this->lecturer)->post(route('courses.assignments.grade', [$this->course, $assignment, $sub]), [
+            'score' => 90.0,
+        ]);
+        $gradeRes->assertSessionHasNoErrors();
+        $gradeRes->assertRedirect();
+
+        $response = $this->actingAs($this->lecturer)->get(route('courses.grades.export', $this->course));
+
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', $response->headers->get('Content-Type') ?? '');
+        $this->assertStringContainsString('rekap-nilai-ENG201-', $response->headers->get('Content-Disposition') ?? '');
+
+        // Tangkap isi konten stream
+        ob_start();
+        $response->sendContent();
+        $content = ob_get_clean();
+
+        $this->assertStringContainsString('REKAPITULASI EVALUASI & NILAI AKHIR MAHASISWA', $content);
+        $this->assertStringContainsString('Academic Writing', $content);
+        $this->assertStringContainsString('Dr. Budi Santoso', $content);
+        $this->assertStringContainsString('Ahmad Fauzi', $content);
+        $this->assertStringContainsString('230101001', $content);
+        $this->assertStringContainsString('90.0', $content);
+        $this->assertStringContainsString('RINGKASAN STATISTIK KELAS', $content);
+    }
+
+    public function test_student_cannot_export_course_grades_csv(): void
+    {
+        $response = $this->actingAs($this->student1)->get(route('courses.grades.export', $this->course));
+        $response->assertForbidden();
+    }
 }
