@@ -107,7 +107,7 @@
         <div class="grid gap-4 sm:grid-cols-12">
             <div class="sm:col-span-6">
                 <label class="block text-xs font-semibold text-slate-700">Judul Tugas Perkuliahan *</label>
-                <input type="text" name="title" required value="{{ old('title', $assignment->title) }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                <input type="text" name="title" required value="{{ old('title', $assignment->title) }}" placeholder="Judul tugas perkuliahan..." class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
             </div>
             <div class="sm:col-span-3">
                 <label class="block text-xs font-semibold text-slate-700">Status Publikasi *</label>
@@ -164,7 +164,7 @@
 
             <div>
                 <label class="block text-xs font-semibold text-amber-900">Teks Stimulus Bacaan / Transkrip Materi (Opsional)</label>
-                <textarea name="reading_passage" rows="3" placeholder="Jika ada naskah teks stimulus..." class="mt-1 w-full rounded-lg border-amber-300 text-xs focus:border-amber-700 focus:ring-amber-700">{{ old('reading_passage', $assignment->config_json['reading_passage'] ?? '') }}</textarea>
+                <textarea name="reading_passage" rows="3" placeholder="Teks stimulus bacaan, transkrip rekaman, atau studi kasus pendamping..." class="mt-1 w-full rounded-lg border-amber-300 text-xs focus:border-amber-700 focus:ring-amber-700">{{ old('reading_passage', $assignment->config_json['reading_passage'] ?? '') }}</textarea>
             </div>
         </div>
 
@@ -202,7 +202,7 @@
             </div>
             <div>
                 <label class="block text-xs font-semibold text-purple-900">Naskah Sumber (Source Text) yang Harus Diterjemahkan *</label>
-                <textarea name="source_text" rows="5" class="mt-1 w-full rounded-lg border-purple-300 font-serif text-xs leading-relaxed focus:border-purple-700 focus:ring-purple-700">{{ old('source_text', $assignment->config_json['source_text'] ?? '') }}</textarea>
+                <textarea name="source_text" rows="5" placeholder="Tempelkan naskah teks sumber (ST) yang wajib diterjemahkan mahasiswa..." class="mt-1 w-full rounded-lg border-purple-300 font-serif text-xs leading-relaxed focus:border-purple-700 focus:ring-purple-700">{{ old('source_text', $assignment->config_json['source_text'] ?? '') }}</textarea>
             </div>
         </div>
 

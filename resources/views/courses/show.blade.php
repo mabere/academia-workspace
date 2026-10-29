@@ -994,7 +994,9 @@
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-semibold text-slate-700">Judul Tugas Perkuliahan *</label>
-                                <input type="text" name="title" required placeholder="Contoh: Academic Lecture Listening Section 1 atau Esai Kritis Sosiolinguistik" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                                <input type="text" name="title" required
+                                    :placeholder="assignmentType === 'translation' ? 'Contoh: Penerjemahan Naskah Klausul Kontrak / Artikel Berita' : (assignmentType === 'stimulus_exam' ? 'Contoh: Academic Listening Comprehension Section 1' : (assignmentType === 'hybrid' ? 'Contoh: Ujian Tengah Semester Bahasa Inggris Hukum (MKDU)' : (assignmentType === 'milestone_artifact' ? 'Contoh: Proposal Riset Skripsi & Slide Presentasi' : 'Contoh: Esai Kritis Analisis Wacana / Sosiolinguistik')))"
+                                    class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700">Batas Waktu Pengumpulan (Deadline)</label>
