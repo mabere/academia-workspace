@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AcademicStructureController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BkdAssessmentController;
 use App\Http\Controllers\CorpusLabController;
 use App\Http\Controllers\CourseAssignmentController;
@@ -71,6 +72,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+    // Cadangan & Pemulihan Data Mandiri (Khusus Staf & Dosen)
+    Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+    Route::post('/backups/database', [BackupController::class, 'createDatabaseBackup'])->name('backups.database');
+    Route::post('/backups/full', [BackupController::class, 'createFullBackup'])->name('backups.full');
+    Route::get('/backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
+    Route::delete('/backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
 
     Route::get('/outputs/{type}/{id}/download', [OutputEvidenceController::class, 'download'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.download');
     Route::get('/outputs/{type}/{id}', [OutputEvidenceController::class, 'show'])->whereIn('type', ['course_teaching', 'literature_source', 'instrument_blueprint', 'expert_validation', 'gurubahasa_material', 'writewise_assignment', 'writewise_feedback', 'corpuslab_protocol'])->whereNumber('id')->name('outputs.show');
