@@ -113,8 +113,12 @@ class WritingAssignmentController extends Controller
         $title = $assignment->title;
 
         DB::transaction(function () use ($assignment) {
-            if (! empty($assignment->config_json['audio_file_path']) && Storage::disk('public')->exists($assignment->config_json['audio_file_path'])) {
-                Storage::disk('public')->delete($assignment->config_json['audio_file_path']);
+            if (! empty($assignment->config_json['audio_file_path'])) {
+                foreach (['local', 'public'] as $disk) {
+                    if (Storage::disk($disk)->exists($assignment->config_json['audio_file_path'])) {
+                        Storage::disk($disk)->delete($assignment->config_json['audio_file_path']);
+                    }
+                }
             }
 
             $assignment->delete();

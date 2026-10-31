@@ -126,6 +126,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" x-data="{
             text: @js(old('body_text', '')),
             extracting: false,
+            submitting: false,
             extractSuccess: false,
             extractMessage: '',
             selectedFileName: '',
@@ -233,7 +234,7 @@
                 </div>
 
                 {{-- Form Pengiriman Submisi Revisi --}}
-                <form method="post" action="{{ route('assignments.revisions.store', $assignment) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
+                <form method="post" action="{{ route('assignments.revisions.store', $assignment) }}" enctype="multipart/form-data" class="mt-4 space-y-3" @submit="submitting = true">
                     @csrf
 
                     {{-- Input Khusus Format Milestone: Pilihan Tahap Milestone --}}
@@ -289,8 +290,8 @@
                         <span class="text-[11px] text-slate-500">
                             Minimal 20 karakter · Naskah akan dievaluasi sesuai CPMK & rubrik akademik kelas.
                         </span>
-                        <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 shadow transition">
-                            Kirim Sebagai Revisi Baru &rarr;
+                        <button type="submit" :disabled="submitting || extracting" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 shadow transition disabled:opacity-60 disabled:cursor-not-allowed">
+                            <span x-text="submitting ? 'Mengirim Revisi...' : 'Kirim Sebagai Revisi Baru →'">Kirim Sebagai Revisi Baru &rarr;</span>
                         </button>
                     </div>
                 </form>

@@ -9,8 +9,18 @@
         timeLimit: {{ $assignment->time_limit_minutes ? 'true' : 'false' }},
         timerString: '',
         maxPlays: {{ (int) ($assignment->config_json['audio_max_plays'] ?? 2) }},
-        playsLeft: {{ (int) ($assignment->config_json['audio_max_plays'] ?? 2) }},
+        playsLeft: {{ (int) ($playsLeft ?? ($assignment->config_json['audio_max_plays'] ?? 2)) }},
+        hasCountedCurrentPlay: false,
+        submitting: false,
+        storageKey: 'exam_draft_{{ $assignment->id }}_{{ auth()->id() }}',
         init() {
+            this.restoreDraft();
+            if (this.maxPlays > 0 && this.playsLeft <= 0) {
+                const audio = document.getElementById('stimulusAudio');
+                if (audio) {
+                    audio.controls = false;
+                }
+            }
             if (this.timeLimit && this.remainingSeconds > 0) {
                 this.updateTimerString();
                 const interval = setInterval(() => {
@@ -19,6 +29,7 @@
                     if (this.remainingSeconds <= 0) {
                         clearInterval(interval);
                         alert('Waktu ujian telah berakhir! Sistem akan mengumpulkan jawaban Anda secara otomatis.');
+                        this.clearDraft();
                         document.getElementById('examForm')?.submit();
                     }
                 }, 1000);
@@ -29,18 +40,86 @@
             const s = this.remainingSeconds % 60;
             this.timerString = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         },
-        onAudioPlay() {
-            // Pemantau pemutaran audio terkendali
+        saveDraft() {
+            const form = document.getElementById('examForm');
+            if (!form) return;
+            const data = {};
+            const formData = new FormData(form);
+            for (const [key, value] of formData.entries()) {
+                if (key !== '_token') {
+                    data[key] = value;
+                }
+            }
+            try {
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            } catch (e) {}
+        },
+        restoreDraft() {
+            const form = document.getElementById('examForm');
+            if (!form) return;
+            try {
+                const raw = localStorage.getItem(this.storageKey);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                Object.entries(data).forEach(([name, val]) => {
+                    const els = form.querySelectorAll(`[name=&quot;${name}&quot;]`);
+                    els.forEach(el => {
+                        if (el.type === 'radio') {
+                            el.checked = (el.value === String(val));
+                        } else {
+                            el.value = val;
+                        }
+                    });
+                });
+            } catch (e) {}
+        },
+        clearDraft() {
+            try {
+                localStorage.removeItem(this.storageKey);
+            } catch (e) {}
+        },
+        async onAudioPlay() {
+            const audio = document.getElementById('stimulusAudio');
+            if (this.maxPlays > 0 && this.playsLeft <= 0 && !this.hasCountedCurrentPlay) {
+                if (audio) {
+                    audio.pause();
+                    audio.controls = false;
+                }
+                return;
+            }
+            if (this.maxPlays > 0 && !this.hasCountedCurrentPlay) {
+                this.hasCountedCurrentPlay = true;
+                this.playsLeft = Math.max(0, this.playsLeft - 1);
+                @if(!$isPreview)
+                try {
+                    const res = await fetch('{{ route('assignments.audio-play', $assignment) }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (res.ok || res.status === 429) {
+                        const payload = await res.json();
+                        if (typeof payload.plays_left === 'number') {
+                            this.playsLeft = payload.plays_left;
+                        }
+                        if (res.status === 429 && audio) {
+                            audio.pause();
+                            audio.controls = false;
+                        }
+                    }
+                } catch (e) {}
+                @endif
+            }
         },
         onAudioEnded() {
-            if (this.maxPlays > 0 && this.playsLeft > 0) {
-                this.playsLeft--;
-                if (this.playsLeft === 0) {
-                    const audio = document.getElementById('stimulusAudio');
-                    if (audio) {
-                        audio.pause();
-                        audio.controls = false;
-                    }
+            this.hasCountedCurrentPlay = false;
+            if (this.maxPlays > 0 && this.playsLeft <= 0) {
+                const audio = document.getElementById('stimulusAudio');
+                if (audio) {
+                    audio.pause();
+                    audio.controls = false;
                 }
             }
         }
@@ -102,8 +181,9 @@
                     </div>
 
                     <div>
-                        <audio id="stimulusAudio" controls class="h-9 w-64 max-w-full"
+                        <audio id="stimulusAudio" controls controlsList="nodownload" class="h-9 w-64 max-w-full"
                             preload="metadata"
+                            @contextmenu.prevent
                             @play="onAudioPlay"
                             @ended="onAudioEnded">
                             <source src="{{ route('assignments.audio-stream', $assignment) }}">
@@ -215,7 +295,9 @@
 
     {{-- KONDISI 2: FORM PENGERJAAN SOAL AKTIF (MAHASISWA ATAU MODE PRATINJAU) --}}
     @else
-        <form id="examForm" method="post" action="{{ route('assignments.exam.submit', $assignment) }}" class="space-y-6">
+        <form id="examForm" method="post" action="{{ route('assignments.exam.submit', $assignment) }}" class="space-y-6"
+            @input="saveDraft()" @change="saveDraft()"
+            @submit="if (!confirm('Apakah Anda yakin ingin menyelesaikan dan mengumpulkan ujian ini? Jawaban tidak dapat diubah kembali setelah dikirim.')) { $event.preventDefault(); return false; } submitting = true; clearDraft();">
             @csrf
 
             {{-- Bagian 1: Butir Soal Objektif / Pilihan Ganda --}}
@@ -295,11 +377,11 @@
             @if(!$isPreview)
                 <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <p class="text-[11px] text-slate-500">
-                        Pastikan seluruh butir soal telah dijawab sebelum mengumpulkan.
+                        Pastikan seluruh butir soal telah dijawab sebelum mengumpulkan. Draf jawaban tersimpan otomatis di peramban.
                     </p>
-                    <button type="submit" onclick="return confirm('Apakah Anda yakin ingin menyelesaikan dan mengumpulkan ujian ini? Jawaban tidak dapat diubah kembali setelah dikirim.');"
-                        class="rounded-xl bg-teal-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-teal-700 shadow transition">
-                        Kirim Jawaban Ujian &rarr;
+                    <button type="submit" :disabled="submitting"
+                        class="rounded-xl bg-teal-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-teal-700 shadow transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span x-text="submitting ? 'Mengirim Jawaban...' : 'Kirim Jawaban Ujian →'">Kirim Jawaban Ujian &rarr;</span>
                     </button>
                 </div>
             @else

@@ -22,7 +22,7 @@ class BackupController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless($request->user()->isStaff(), 403, 'Akses terbatas untuk staf dan dosen.');
+        abort_unless($request->user()?->isSuperadmin(), 403, 'Akses cadangan sistem hanya untuk Superadmin.');
 
         File::ensureDirectoryExists($this->backupDir);
 
@@ -92,7 +92,7 @@ class BackupController extends Controller
 
     public function createDatabaseBackup(Request $request): BinaryFileResponse
     {
-        abort_unless($request->user()->isStaff(), 403, 'Akses terbatas untuk staf dan dosen.');
+        abort_unless($request->user()?->isSuperadmin(), 403, 'Akses cadangan sistem hanya untuk Superadmin.');
 
         File::ensureDirectoryExists($this->backupDir);
 
@@ -109,7 +109,7 @@ class BackupController extends Controller
 
     public function createFullBackup(Request $request): BinaryFileResponse
     {
-        abort_unless($request->user()->isStaff(), 403, 'Akses terbatas untuk staf dan dosen.');
+        abort_unless($request->user()?->isSuperadmin(), 403, 'Akses cadangan sistem hanya untuk Superadmin.');
 
         File::ensureDirectoryExists($this->backupDir);
 
@@ -173,7 +173,7 @@ class BackupController extends Controller
 
     public function download(Request $request, string $filename): BinaryFileResponse
     {
-        abort_unless($request->user()->isStaff(), 403, 'Akses terbatas untuk staf dan dosen.');
+        abort_unless($request->user()?->isSuperadmin(), 403, 'Akses cadangan sistem hanya untuk Superadmin.');
 
         // Proteksi Directory Traversal
         if (basename($filename) !== $filename) {
@@ -192,7 +192,7 @@ class BackupController extends Controller
 
     public function destroy(Request $request, string $filename): RedirectResponse
     {
-        abort_unless($request->user()->isStaff(), 403, 'Akses terbatas untuk staf dan dosen.');
+        abort_unless($request->user()?->isSuperadmin(), 403, 'Akses cadangan sistem hanya untuk Superadmin.');
 
         if (basename($filename) !== $filename) {
             abort(400, 'Permintaan berkas tidak valid.');
@@ -211,7 +211,7 @@ class BackupController extends Controller
         $currentDb = $this->getActiveDatabasePath();
 
         if (config('database.default') === 'sqlite') {
-            $safeTarget = str_replace('\\', '/', $targetPath);
+            $safeTarget = str_replace(['\\', "'"], ['/', "''"], $targetPath);
             try {
                 // SQLite 3.27+ atomic online snapshot
                 DB::statement("VACUUM INTO '{$safeTarget}'");

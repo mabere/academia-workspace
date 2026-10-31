@@ -20,7 +20,7 @@ class CourseAssignmentController extends Controller
 {
     public function store(Request $request, Course $course): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:180'],
@@ -60,7 +60,7 @@ class CourseAssignmentController extends Controller
 
             $configJson = [];
             if ($request->hasFile('audio_file')) {
-                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'public');
+                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'local');
                 $configJson['audio_max_plays'] = isset($data['audio_max_plays']) ? (int) $data['audio_max_plays'] : 2;
             }
             if (! empty($data['reading_passage'])) {
@@ -246,17 +246,25 @@ class CourseAssignmentController extends Controller
             $configJson = $assignment->config_json ?? [];
 
             if ($request->boolean('delete_audio')) {
-                if (! empty($configJson['audio_file_path']) && Storage::disk('public')->exists($configJson['audio_file_path'])) {
-                    Storage::disk('public')->delete($configJson['audio_file_path']);
+                if (! empty($configJson['audio_file_path'])) {
+                    foreach (['local', 'public'] as $disk) {
+                        if (Storage::disk($disk)->exists($configJson['audio_file_path'])) {
+                            Storage::disk($disk)->delete($configJson['audio_file_path']);
+                        }
+                    }
                 }
                 unset($configJson['audio_file_path']);
             }
 
             if ($request->hasFile('audio_file')) {
-                if (! empty($configJson['audio_file_path']) && Storage::disk('public')->exists($configJson['audio_file_path'])) {
-                    Storage::disk('public')->delete($configJson['audio_file_path']);
+                if (! empty($configJson['audio_file_path'])) {
+                    foreach (['local', 'public'] as $disk) {
+                        if (Storage::disk($disk)->exists($configJson['audio_file_path'])) {
+                            Storage::disk($disk)->delete($configJson['audio_file_path']);
+                        }
+                    }
                 }
-                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'public');
+                $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'local');
             }
 
             if (isset($data['audio_max_plays'])) {
@@ -351,8 +359,12 @@ class CourseAssignmentController extends Controller
         $title = $assignment->title;
 
         DB::transaction(function () use ($course, $assignment) {
-            if (! empty($assignment->config_json['audio_file_path']) && Storage::disk('public')->exists($assignment->config_json['audio_file_path'])) {
-                Storage::disk('public')->delete($assignment->config_json['audio_file_path']);
+            if (! empty($assignment->config_json['audio_file_path'])) {
+                foreach (['local', 'public'] as $disk) {
+                    if (Storage::disk($disk)->exists($assignment->config_json['audio_file_path'])) {
+                        Storage::disk($disk)->delete($assignment->config_json['audio_file_path']);
+                    }
+                }
             }
 
             $affectedStudentIds = $assignment->submissions()->pluck('student_id')->all();
@@ -371,7 +383,8 @@ class CourseAssignmentController extends Controller
 
     public function grade(Request $request, Course $course, WritingAssignment $assignment, WritingSubmission $submission): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($assignment->course_id === $course->id && $submission->assignment_id === $assignment->id, 404);
 
         $data = $request->validate([
             'score' => ['required', 'numeric', 'min:0', 'max:100'],

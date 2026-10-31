@@ -34,6 +34,7 @@ class AssignmentExamFeatureTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         Storage::fake('public');
 
         $faculty = Faculty::create(['name' => 'Fakultas Keguruan dan Ilmu Pendidikan', 'code' => 'FKIP']);
@@ -111,7 +112,7 @@ class AssignmentExamFeatureTest extends TestCase
         $this->assertEquals(40, $assignment->time_limit_minutes);
         $this->assertEquals(2, $assignment->config_json['audio_max_plays']);
         $this->assertNotEmpty($assignment->config_json['audio_file_path']);
-        Storage::disk('public')->assertExists($assignment->config_json['audio_file_path']);
+        Storage::disk('local')->assertExists($assignment->config_json['audio_file_path']);
 
         $response->assertRedirect(route('assignments.questions.index', $assignment));
     }
@@ -295,5 +296,61 @@ class AssignmentExamFeatureTest extends TestCase
         $submission->refresh();
         $this->assertEquals('graded', $submission->status);
         $this->assertEquals(80.0, $submission->score);
+    }
+
+    public function test_server_side_audio_play_limit_is_enforced_across_requests(): void
+    {
+        $assignment = WritingAssignment::create([
+            'course_id' => $this->course->id,
+            'project_id' => $this->project->id,
+            'created_by' => $this->lecturer->id,
+            'title' => 'Listening Audio Limit Test',
+            'instructions' => 'Dengarkan audio maksimal 2 kali.',
+            'assignment_type' => 'stimulus_exam',
+            'config_json' => [
+                'audio_file_path' => 'courses/1/audio/sample.mp3',
+                'audio_max_plays' => 2,
+            ],
+            'status' => 'published',
+        ]);
+
+        // Play 1
+        $res1 = $this->actingAs($this->student)->postJson(route('assignments.audio-play', $assignment));
+        $res1->assertOk()->assertJson(['plays_used' => 1, 'plays_left' => 1, 'exhausted' => false]);
+
+        // Play 2
+        $res2 = $this->actingAs($this->student)->postJson(route('assignments.audio-play', $assignment));
+        $res2->assertOk()->assertJson(['plays_used' => 2, 'plays_left' => 0, 'exhausted' => true]);
+
+        // Play 3 (exceeds limit -> 429)
+        $res3 = $this->actingAs($this->student)->postJson(route('assignments.audio-play', $assignment));
+        $res3->assertStatus(429)->assertJson(['plays_used' => 2, 'plays_left' => 0, 'exhausted' => true]);
+    }
+
+    public function test_server_side_exam_timer_rejects_expired_submission_past_grace_period(): void
+    {
+        $assignment = WritingAssignment::create([
+            'course_id' => $this->course->id,
+            'project_id' => $this->project->id,
+            'created_by' => $this->lecturer->id,
+            'title' => 'Timed Exam Test',
+            'instructions' => 'Waktu 30 menit.',
+            'assignment_type' => 'stimulus_exam',
+            'time_limit_minutes' => 30,
+            'status' => 'published',
+        ]);
+
+        WritingSubmission::create([
+            'assignment_id' => $assignment->id,
+            'student_id' => $this->student->id,
+            'started_at' => now()->subMinutes(40), // 40m elapsed > 30m + 5m grace
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($this->student)->post(route('assignments.exam.submit', $assignment), [
+            'answers' => [],
+        ]);
+
+        $response->assertStatus(409);
     }
 }

@@ -48,7 +48,7 @@ class WritingSubmission extends Model
 
     public function currentMilestoneTitle(): ?string
     {
-        if (! $this->current_milestone_id || ! $this->assignment) {
+        if (! $this->current_milestone_id || ! $this->assignment || ! $this->assignment->isMilestone()) {
             return null;
         }
 

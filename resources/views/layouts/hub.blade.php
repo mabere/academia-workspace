@@ -227,9 +227,9 @@
                             </svg>
                             <span data-sidebar-label class="flex items-center justify-between w-full">
                                 <span>Notifikasi</span>
-                                @if(auth()->user()->unreadNotifications()->count() > 0)
+                                @if(($userUnreadCount ?? 0) > 0)
                                     <span class="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
-                                        {{ auth()->user()->unreadNotifications()->count() }}
+                                        {{ $userUnreadCount }}
                                     </span>
                                 @endif
                             </span>
@@ -274,6 +274,8 @@
                                     <rect x="14" y="14" width="6" height="6" rx="1" />
                                 </svg><span data-sidebar-label>Modul</span>
                             </a>
+                        @endif
+                        @if (auth()->user()->role === 'superadmin')
                             <a href="{{ route('backups.index') }}"
                                 @if (request()->routeIs('backups.*')) aria-current="page" @endif title="Cadangan Data"
                                 class="sidebar-link {{ request()->routeIs('backups.*') ? 'sidebar-link-active' : '' }}">
@@ -283,8 +285,6 @@
                                         d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
                                 </svg><span data-sidebar-label>Cadangan Data</span>
                             </a>
-                        @endif
-                        @if (auth()->user()->role === 'superadmin')
                             <a href="{{ route('academic-structure.index') }}"
                                 @if (request()->routeIs('academic-structure.*')) aria-current="page" @endif title="Fakultas & Prodi"
                                 class="sidebar-link {{ request()->routeIs('academic-structure.*') ? 'sidebar-link-active' : '' }}">

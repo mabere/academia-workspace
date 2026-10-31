@@ -80,7 +80,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
-    // Cadangan & Pemulihan Data Mandiri (Khusus Staf & Dosen)
+    // Cadangan & Pemulihan Data Sistem (Akses Khusus Superadmin)
     Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
     Route::post('/backups/database', [BackupController::class, 'createDatabaseBackup'])->name('backups.database');
     Route::post('/backups/full', [BackupController::class, 'createFullBackup'])->name('backups.full');
@@ -108,7 +108,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/courses/{course}/sessions/{session}/open-attendance', [CourseSessionController::class, 'openAttendance'])->name('courses.sessions.open-attendance');
     Route::post('/courses/{course}/sessions/{session}/close-attendance', [CourseSessionController::class, 'closeAttendance'])->name('courses.sessions.close-attendance');
     Route::post('/courses/{course}/sessions/{session}/regenerate-code', [CourseSessionController::class, 'regeneratePasscode'])->name('courses.sessions.regenerate-code');
-    Route::post('/courses/{course}/sessions/{session}/check-in', [CourseSessionController::class, 'checkIn'])->name('courses.sessions.check-in');
+    Route::post('/courses/{course}/sessions/{session}/check-in', [CourseSessionController::class, 'checkIn'])->middleware('throttle:10,1')->name('courses.sessions.check-in');
     Route::post('/courses/{course}/sessions/{session}/attendances/toggle', [CourseSessionController::class, 'toggleStudentAttendance'])->name('courses.sessions.attendances.toggle');
     Route::delete('/courses/{course}/sessions/{session}', [CourseSessionController::class, 'destroy'])->name('courses.sessions.destroy');
     Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
@@ -170,7 +170,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/assignments/{assignment}', [WritingAssignmentController::class, 'show'])->name('assignments.show');
     Route::patch('/assignments/{assignment}', [WritingAssignmentController::class, 'update'])->name('assignments.update');
     Route::delete('/assignments/{assignment}', [WritingAssignmentController::class, 'destroy'])->name('assignments.destroy');
-    Route::post('/assignments/extract-document', [WritingAssignmentController::class, 'extractDocument'])->name('assignments.extract-document');
+    Route::post('/assignments/extract-document', [WritingAssignmentController::class, 'extractDocument'])->middleware('throttle:10,1')->name('assignments.extract-document');
     Route::post('/assignments/{assignment}/revisions', [WritingAssignmentController::class, 'submit'])->name('assignments.revisions.store');
     Route::post('/revisions/{revision}/feedback/generate', [WritingAssignmentController::class, 'generateFeedback'])->middleware('throttle:3,1')->name('feedback.generate');
     Route::post('/revisions/{revision}/feedback', [WritingAssignmentController::class, 'createFeedback'])->name('feedback.store');
@@ -182,6 +182,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assignments/{assignment}/questions', [AssignmentExamController::class, 'storeQuestion'])->name('assignments.questions.store');
     Route::delete('/assignments/{assignment}/questions/{question}', [AssignmentExamController::class, 'destroyQuestion'])->name('assignments.questions.destroy');
     Route::get('/assignments/{assignment}/audio-stream', [AssignmentExamController::class, 'streamAudio'])->name('assignments.audio-stream');
+    Route::post('/assignments/{assignment}/audio-play', [AssignmentExamController::class, 'recordAudioPlay'])->middleware('throttle:30,1')->name('assignments.audio-play');
     Route::get('/assignments/{assignment}/exam', [AssignmentExamController::class, 'take'])->name('assignments.exam.take');
-    Route::post('/assignments/{assignment}/exam', [AssignmentExamController::class, 'submitExam'])->name('assignments.exam.submit');
+    Route::post('/assignments/{assignment}/exam', [AssignmentExamController::class, 'submitExam'])->middleware('throttle:10,1')->name('assignments.exam.submit');
 });

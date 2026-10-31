@@ -8,6 +8,7 @@ use App\Models\CourseStudent;
 use App\Models\WritingAssignment;
 use App\Models\WritingSubmission;
 use App\Notifications\AcademicNotification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +27,7 @@ class AssignmentExamController extends Controller
     {
         $user = Auth::user();
         abort_unless(
-            $user->id === $assignment->course?->lecturer_id || $user->role === 'admin' || $user->id === $assignment->created_by,
+            $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true) || $user->id === $assignment->created_by,
             403,
             'Hanya dosen pengampu mata kuliah yang berhak mengelola butir soal.'
         );
@@ -46,7 +47,7 @@ class AssignmentExamController extends Controller
     {
         $user = Auth::user();
         abort_unless(
-            $user->id === $assignment->course?->lecturer_id || $user->role === 'admin' || $user->id === $assignment->created_by,
+            $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true) || $user->id === $assignment->created_by,
             403
         );
 
@@ -96,7 +97,7 @@ class AssignmentExamController extends Controller
     {
         $user = Auth::user();
         abort_unless(
-            $user->id === $assignment->course?->lecturer_id || $user->role === 'admin' || $user->id === $assignment->created_by,
+            $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true) || $user->id === $assignment->created_by,
             403
         );
         abort_unless($question->assignment_id === $assignment->id, 404);
@@ -112,15 +113,24 @@ class AssignmentExamController extends Controller
     public function streamAudio(WritingAssignment $assignment): BinaryFileResponse|StreamedResponse
     {
         $user = Auth::user();
-        $isLecturer = $user->id === $assignment->course?->lecturer_id || $user->role === 'admin';
+        $isLecturer = $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true);
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
 
         abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak terdaftar pada mata kuliah ini.');
 
         $audioPath = $assignment->config_json['audio_file_path'] ?? null;
-        abort_unless($audioPath && Storage::disk('public')->exists($audioPath), 404, 'Berkas audio stimulus tidak ditemukan.');
+        abort_unless($audioPath, 404, 'Berkas audio stimulus tidak ditemukan.');
 
-        $fullPath = Storage::disk('public')->path($audioPath);
+        $disk = null;
+        if (Storage::disk('local')->exists($audioPath)) {
+            $disk = 'local';
+        } elseif (Storage::disk('public')->exists($audioPath)) {
+            $disk = 'public';
+        }
+
+        abort_unless($disk !== null, 404, 'Berkas audio stimulus tidak ditemukan.');
+
+        $fullPath = Storage::disk($disk)->path($audioPath);
         $mime = mime_content_type($fullPath) ?: 'audio/mpeg';
 
         return response()->file($fullPath, [
@@ -131,17 +141,66 @@ class AssignmentExamController extends Controller
     }
 
     /**
+     * Catat Pemutaran Audio Stimulus di Sisi Server (Anti-Reset Refresh)
+     */
+    public function recordAudioPlay(Request $request, WritingAssignment $assignment): JsonResponse
+    {
+        $user = $request->user();
+        $isLecturer = $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true);
+        $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
+
+        abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak memiliki akses ke tugas ini.');
+
+        $maxPlays = (int) ($assignment->config_json['audio_max_plays'] ?? 2);
+
+        if ($isLecturer) {
+            return response()->json([
+                'plays_used' => 0,
+                'plays_left' => $maxPlays,
+                'exhausted' => false,
+            ]);
+        }
+
+        $submission = WritingSubmission::firstOrCreate([
+            'assignment_id' => $assignment->id,
+            'student_id' => $user->id,
+        ]);
+
+        $playsUsed = (int) ($submission->current_milestone_id ?? 0);
+
+        if ($maxPlays > 0 && $playsUsed >= $maxPlays) {
+            return response()->json([
+                'plays_used' => $playsUsed,
+                'plays_left' => 0,
+                'exhausted' => true,
+            ], 429);
+        }
+
+        $playsUsed++;
+        $submission->update(['current_milestone_id' => $playsUsed]);
+        $playsLeft = $maxPlays > 0 ? max(0, $maxPlays - $playsUsed) : 0;
+
+        return response()->json([
+            'plays_used' => $playsUsed,
+            'plays_left' => $playsLeft,
+            'exhausted' => $maxPlays > 0 && $playsLeft <= 0,
+        ]);
+    }
+
+    /**
      * Halaman Pengerjaan Ujian / Latihan Stimulus (Mahasiswa & Mode Pratinjau Dosen)
      */
     public function take(WritingAssignment $assignment): View|RedirectResponse
     {
         $user = Auth::user();
-        $isLecturer = $user->id === $assignment->course?->lecturer_id || $user->role === 'admin';
+        $isLecturer = $user->id === $assignment->course?->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true);
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
 
         abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak memiliki akses ke tugas ini.');
 
         $assignment->load(['questions' => fn ($q) => $q->orderBy('order'), 'course.lecturer']);
+
+        $maxPlays = (int) ($assignment->config_json['audio_max_plays'] ?? 2);
 
         // Jika dosen, buka dalam mode pratinjau
         if ($isLecturer) {
@@ -152,6 +211,7 @@ class AssignmentExamController extends Controller
                 'assignment' => $assignment,
                 'submission' => $submission,
                 'remainingSeconds' => $remainingSeconds,
+                'playsLeft' => $maxPlays,
                 'isPreview' => true,
             ]);
         }
@@ -179,7 +239,7 @@ class AssignmentExamController extends Controller
         $remainingSeconds = null;
         if ($assignment->time_limit_minutes) {
             $totalAllowed = $assignment->time_limit_minutes * 60;
-            $elapsed = now()->diffInSeconds($submission->started_at);
+            $elapsed = (int) abs(now()->diffInSeconds($submission->started_at));
             $remainingSeconds = max(0, $totalAllowed - $elapsed);
 
             // Jika waktu telah habis dan belum submit, otomatis selesaikan
@@ -188,12 +248,16 @@ class AssignmentExamController extends Controller
             }
         }
 
+        $playsUsed = (int) ($submission->current_milestone_id ?? 0);
+        $playsLeft = $maxPlays > 0 ? max(0, $maxPlays - $playsUsed) : 0;
+
         $submission->load(['answers.question']);
 
         return view('assignments.exam', [
             'assignment' => $assignment,
             'submission' => $submission,
             'remainingSeconds' => $remainingSeconds,
+            'playsLeft' => $playsLeft,
             'isPreview' => false,
         ]);
     }
@@ -217,6 +281,16 @@ class AssignmentExamController extends Controller
             409,
             'Anda sudah pernah mengumpulkan jawaban untuk tugas ini.'
         );
+
+        if ($assignment->time_limit_minutes && $submission->started_at) {
+            $maxAllowedSeconds = ($assignment->time_limit_minutes * 60) + 300;
+            $elapsedSeconds = (int) abs(now()->diffInSeconds($submission->started_at));
+            abort_if(
+                $elapsedSeconds > $maxAllowedSeconds,
+                409,
+                'Batas waktu pengerjaan ujian telah habis melebihi batas toleransi sistem.'
+            );
+        }
 
         $answersInput = $request->input('answers', []);
         $essayAnswer = $request->input('essay_answer', '');

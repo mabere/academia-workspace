@@ -32,6 +32,7 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         Storage::fake('public');
 
         $faculty = Faculty::create(['name' => 'Fakultas Keguruan dan Ilmu Pendidikan', 'code' => 'FKIP']);
@@ -171,7 +172,7 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
 
         $assignment = WritingAssignment::where('course_id', $this->course->id)->first();
         $oldPath = $assignment->config_json['audio_file_path'];
-        Storage::disk('public')->assertExists($oldPath);
+        Storage::disk('local')->assertExists($oldPath);
 
         // Ganti file audio baru dan ubah batas putar
         $newAudio = UploadedFile::fake()->create('lecture_v2.mp3', 2048, 'audio/mpeg');
@@ -194,8 +195,8 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
         $this->assertEquals('Teks transkrip baru.', $assignment->config_json['reading_passage']);
 
         // File audio lama terhapus dan file baru tersimpan
-        Storage::disk('public')->assertMissing($oldPath);
-        Storage::disk('public')->assertExists($assignment->config_json['audio_file_path']);
+        Storage::disk('local')->assertMissing($oldPath);
+        Storage::disk('local')->assertExists($assignment->config_json['audio_file_path']);
 
         // Update dengan delete_audio = 1
         $currentPath = $assignment->config_json['audio_file_path'];
@@ -208,7 +209,7 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
         ]);
 
         $assignment->refresh();
-        Storage::disk('public')->assertMissing($currentPath);
+        Storage::disk('local')->assertMissing($currentPath);
         $this->assertArrayNotHasKey('audio_file_path', $assignment->config_json ?? []);
     }
 
@@ -225,7 +226,7 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
 
         $assignment = WritingAssignment::where('course_id', $this->course->id)->first();
         $audioPath = $assignment->config_json['audio_file_path'];
-        Storage::disk('public')->assertExists($audioPath);
+        Storage::disk('local')->assertExists($audioPath);
 
         // Tambah butir pertanyaan
         $question = $assignment->questions()->create([
@@ -259,7 +260,7 @@ class CourseAssignmentEditAndDeleteTest extends TestCase
         $this->assertDatabaseMissing('writing_submissions', ['id' => $submission->id]);
 
         // Verifikasi berkas audio terhapus dari storage
-        Storage::disk('public')->assertMissing($audioPath);
+        Storage::disk('local')->assertMissing($audioPath);
 
         // Verifikasi nilai akhir mahasiswa dihitung ulang (menjadi null karena tidak ada tugas tersisa)
         $courseStudent->refresh();
