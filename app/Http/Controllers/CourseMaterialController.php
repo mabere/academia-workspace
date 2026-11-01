@@ -15,7 +15,7 @@ class CourseMaterialController extends Controller
 {
     public function store(StoreCourseMaterialRequest $request, Course $course): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
 
         $data = $request->validated();
         $data['course_id'] = $course->id;
@@ -34,6 +34,44 @@ class CourseMaterialController extends Controller
         CourseMaterial::create($data);
 
         return back()->with('status', 'Bahan ajar "'.$data['title'].'" berhasil diunggah.');
+    }
+
+    public function update(Request $request, Course $course, CourseMaterial $material): RedirectResponse
+    {
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($material->course_id === $course->id, 404);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:180'],
+            'session_number' => ['nullable', 'integer', 'min:1', 'max:16'],
+            'material_type' => ['required', 'string', 'in:document,audio,video,link,text,archive'],
+            'file' => ['nullable', 'file', 'max:102400'], // 100 MB
+            'external_url' => ['nullable', 'url', 'max:2000'],
+            'content_text' => ['nullable', 'string'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'is_published' => ['nullable', 'boolean'],
+        ]);
+
+        if ($request->hasFile('file')) {
+            // Hapus file lama dari storage jika ada
+            if ($material->file_path && Storage::disk('local')->exists($material->file_path)) {
+                Storage::disk('local')->delete($material->file_path);
+            }
+
+            $file = $request->file('file');
+            $path = $file->store('materials/'.$course->id, 'local');
+
+            $data['file_path'] = $path;
+            $data['file_name'] = $file->getClientOriginalName();
+            $data['file_size'] = $file->getSize();
+            $data['mime_type'] = $file->getMimeType();
+        }
+
+        $data['is_published'] = $request->boolean('is_published', true);
+
+        $material->update($data);
+
+        return back()->with('status', 'Bahan ajar "'.$material->title.'" berhasil diperbarui.');
     }
 
     public function download(Request $request, Course $course, CourseMaterial $material): BinaryFileResponse|StreamedResponse|RedirectResponse
@@ -98,7 +136,8 @@ class CourseMaterialController extends Controller
 
     public function destroy(Request $request, Course $course, CourseMaterial $material): RedirectResponse
     {
-        abort_unless($request->user()->id === $course->lecturer_id || $request->user()->role === 'admin', 403);
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+        abort_unless($material->course_id === $course->id, 404);
 
         if ($material->file_path && Storage::disk('local')->exists($material->file_path)) {
             Storage::disk('local')->delete($material->file_path);

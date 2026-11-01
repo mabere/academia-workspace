@@ -35,7 +35,7 @@
                     @endif
                 </div>
                 <h1 class="mt-2 text-xl font-bold text-slate-900">{{ $assignment->title }}</h1>
-                <p class="mt-1 text-xs text-slate-600 leading-relaxed">{{ $assignment->instructions }}</p>
+                <div class="mt-1 text-xs text-slate-600 leading-relaxed whitespace-pre-wrap font-sans">{{ $assignment->instructions }}</div>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('assignments.exam.take', $assignment) }}" target="_blank"
@@ -82,11 +82,11 @@
 
         {{-- Panel Pratinjau Naskah Bacaan --}}
         @if(!empty($assignment->config_json['reading_passage']))
-            <details class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <summary class="cursor-pointer text-xs font-bold text-slate-800 hover:text-teal-800">
+            <details class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <summary class="cursor-pointer text-xs sm:text-sm font-bold text-slate-800 hover:text-teal-800">
                     Lihat Naskah Stimulus Bacaan / Teks Materi &darr;
                 </summary>
-                <div class="mt-3 max-h-60 overflow-y-auto whitespace-pre-line rounded-lg bg-white p-3 font-serif text-xs leading-relaxed text-slate-700 border border-slate-200">
+                <div class="mt-3 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl bg-white p-5 font-serif text-base leading-relaxed text-slate-800 border border-slate-200 shadow-2xs">
                     {{ $assignment->config_json['reading_passage'] }}
                 </div>
             </details>
@@ -94,106 +94,106 @@
     </div>
 
     {{-- Form Tambah Butir Soal Baru --}}
-    <div class="rounded-2xl border border-teal-200 bg-white p-6 shadow-sm" x-data="{ questionType: 'multiple_choice' }">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div class="rounded-3xl border border-teal-200 bg-white p-6 sm:p-8 shadow-sm" x-data="{ questionType: 'multiple_choice' }">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-                <h2 class="text-sm font-bold text-slate-900">+ Tambah Butir Soal Baru</h2>
-                <p class="text-xs text-slate-500">Susun pertanyaan pilihan ganda, isian singkat, atau esai analitik.</p>
+                <h2 class="text-base font-bold text-slate-900">+ Tambah Butir Soal Baru</h2>
+                <p class="text-xs sm:text-sm text-slate-500">Susun pertanyaan pilihan ganda, isian singkat, atau esai analitik.</p>
             </div>
             <div class="flex items-center gap-1.5">
                 <button type="button" @click="questionType = 'multiple_choice'"
                     :class="questionType === 'multiple_choice' ? 'bg-teal-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                    class="rounded-xl px-3.5 py-2 text-xs font-semibold transition">
                     Pilihan Ganda
                 </button>
                 <button type="button" @click="questionType = 'short_answer'"
                     :class="questionType === 'short_answer' ? 'bg-teal-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                    class="rounded-xl px-3.5 py-2 text-xs font-semibold transition">
                     Isian Singkat
                 </button>
                 <button type="button" @click="questionType = 'essay'"
                     :class="questionType === 'essay' ? 'bg-teal-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                    class="rounded-xl px-3.5 py-2 text-xs font-semibold transition">
                     Esai Analitis
                 </button>
             </div>
         </div>
 
-        <form method="post" action="{{ route('assignments.questions.store', $assignment) }}" class="mt-4 space-y-4">
+        <form method="post" action="{{ route('assignments.questions.store', $assignment) }}" class="mt-5 space-y-4">
             @csrf
             <input type="hidden" name="question_type" :value="questionType">
 
             <div class="grid gap-4 sm:grid-cols-4">
                 <div class="sm:col-span-3">
-                    <label class="block text-xs font-semibold text-slate-700">Teks Pertanyaan / Butir Soal *</label>
+                    <label class="block text-sm font-semibold text-slate-700">Teks Pertanyaan / Butir Soal *</label>
                     <textarea name="prompt" required rows="3" placeholder="Tuliskan pertanyaan ujian di sini..."
-                        class="mt-1 w-full rounded-xl border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700 shadow-xs"></textarea>
+                        class="mt-1.5 w-full rounded-xl border-slate-300 text-sm leading-relaxed focus:border-teal-700 focus:ring-teal-700 shadow-xs"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700">Poin Soal *</label>
+                    <label class="block text-sm font-semibold text-slate-700">Poin Soal *</label>
                     <input type="number" name="points" value="10" min="1" max="100" required
-                        class="mt-1 w-full rounded-xl border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700 shadow-xs">
-                    <p class="mt-1 text-[11px] text-slate-500">Bobot butir relatif terhadap total poin.</p>
+                        class="mt-1.5 w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700 shadow-xs">
+                    <p class="mt-1.5 text-xs text-slate-500">Bobot butir relatif terhadap total poin.</p>
                 </div>
             </div>
 
             {{-- Kolom Opsi Pilihan Ganda (A, B, C, D) --}}
-            <div x-show="questionType === 'multiple_choice'" class="space-y-3 rounded-xl bg-slate-50 p-4 border border-slate-200">
-                <p class="text-xs font-bold text-slate-800">Pilihan Jawaban & Kunci Jawaban Benar:</p>
+            <div x-show="questionType === 'multiple_choice'" class="space-y-3 rounded-2xl bg-slate-50 p-5 border border-slate-200">
+                <p class="text-xs sm:text-sm font-bold text-slate-800">Pilihan Jawaban & Kunci Jawaban Benar:</p>
 
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <div class="flex items-center gap-2.5">
+                        <label class="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                             <input type="radio" name="answer_key" value="A" required class="text-teal-700 focus:ring-teal-700">
                             A:
                         </label>
                         <input type="text" name="options[A]" placeholder="Opsi jawaban A" required
-                            class="w-full rounded-lg border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700">
+                            class="w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     </div>
-                    <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <div class="flex items-center gap-2.5">
+                        <label class="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                             <input type="radio" name="answer_key" value="B" required class="text-teal-700 focus:ring-teal-700">
                             B:
                         </label>
                         <input type="text" name="options[B]" placeholder="Opsi jawaban B" required
-                            class="w-full rounded-lg border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700">
+                            class="w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     </div>
-                    <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <div class="flex items-center gap-2.5">
+                        <label class="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                             <input type="radio" name="answer_key" value="C" required class="text-teal-700 focus:ring-teal-700">
                             C:
                         </label>
                         <input type="text" name="options[C]" placeholder="Opsi jawaban C" required
-                            class="w-full rounded-lg border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700">
+                            class="w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     </div>
-                    <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <div class="flex items-center gap-2.5">
+                        <label class="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                             <input type="radio" name="answer_key" value="D" required class="text-teal-700 focus:ring-teal-700">
                             D:
                         </label>
                         <input type="text" name="options[D]" placeholder="Opsi jawaban D" required
-                            class="w-full rounded-lg border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700">
+                            class="w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
                     </div>
                 </div>
-                <p class="text-[11px] text-slate-500 italic">* Pilih salah satu tombol radio di atas sebagai kunci jawaban benar yang dinilai otomatis.</p>
+                <p class="text-xs text-slate-500 italic">* Pilih salah satu tombol radio di atas sebagai kunci jawaban benar yang dinilai otomatis.</p>
             </div>
 
             {{-- Kolom Kunci Isian Singkat --}}
-            <div x-show="questionType === 'short_answer'" class="rounded-xl bg-slate-50 p-4 border border-slate-200">
-                <label class="block text-xs font-semibold text-slate-700">Kata Kunci / Jawaban Benar (Short Answer)</label>
+            <div x-show="questionType === 'short_answer'" x-cloak class="rounded-2xl bg-slate-50 p-5 border border-slate-200">
+                <label class="block text-sm font-semibold text-slate-700">Kata Kunci / Jawaban Benar (Short Answer)</label>
                 <input type="text" name="answer_key" placeholder="Contoh: LAD atau Language Acquisition Device"
-                    class="mt-1 w-full rounded-lg border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700">
-                <p class="mt-1 text-[11px] text-slate-500">Sistem akan mencocokkan kata kunci ini (tidak sensitif huruf besar/kecil).</p>
+                    class="mt-1.5 w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700">
+                <p class="mt-1 text-xs text-slate-500">Sistem akan mencocokkan kata kunci ini (tidak sensitif huruf besar/kecil).</p>
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700">Penjelasan / Pembahasan Soal (Opsional)</label>
+                <label class="block text-sm font-semibold text-slate-700">Penjelasan / Pembahasan Soal (Opsional)</label>
                 <input type="text" name="explanation" placeholder="Penjelasan rasional atau referensi letak jawaban pada rekaman audio..."
-                    class="mt-1 w-full rounded-xl border-slate-300 text-xs focus:border-teal-700 focus:ring-teal-700 shadow-xs">
+                    class="mt-1.5 w-full rounded-xl border-slate-300 text-sm focus:border-teal-700 focus:ring-teal-700 shadow-xs">
             </div>
 
             <div class="flex justify-end pt-2">
-                <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-700 shadow transition">
+                <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 shadow transition">
                     + Simpan Butir Soal
                 </button>
             </div>
@@ -201,13 +201,13 @@
     </div>
 
     {{-- Daftar Soal yang Telah Disusun --}}
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3.5">
             <div>
-                <h3 class="text-sm font-bold text-slate-900">
+                <h3 class="text-base font-bold text-slate-900">
                     Daftar Butir Pertanyaan ({{ $assignment->questions->count() }} Soal)
                 </h3>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs sm:text-sm text-slate-500">
                     Total Bobot Poin: {{ $assignment->questions->sum('points') }} Poin
                 </p>
             </div>
@@ -215,48 +215,48 @@
 
         @if($assignment->questions->isEmpty())
             <div class="py-10 text-center">
-                <p class="text-xs font-semibold text-slate-600">Belum ada butir pertanyaan yang ditambahkan.</p>
-                <p class="mt-1 text-[11px] text-slate-400">Gunakan formulir di atas untuk mulai menyusun butir soal ujian.</p>
+                <p class="text-sm font-semibold text-slate-600">Belum ada butir pertanyaan yang ditambahkan.</p>
+                <p class="mt-1 text-xs text-slate-400">Gunakan formulir di atas untuk mulai menyusun butir soal ujian.</p>
             </div>
         @else
             <div class="mt-4 divide-y divide-slate-100">
                 @foreach($assignment->questions as $index => $q)
-                    <div class="py-4 first:pt-0 last:pb-0">
+                    <div class="py-5 first:pt-0 last:pb-0">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-1.5 flex-1">
+                            <div class="space-y-2 flex-1">
                                 <div class="flex items-center gap-2">
-                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+                                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                                         {{ $index + 1 }}
                                     </span>
-                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 uppercase">
+                                    <span class="rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 uppercase">
                                         {{ $q->question_type }}
                                     </span>
                                     <span class="text-xs font-bold text-teal-800">
                                         {{ $q->points }} Poin
                                     </span>
                                 </div>
-                                <p class="text-xs font-medium text-slate-900 leading-relaxed">{{ $q->prompt }}</p>
+                                <p class="text-sm sm:text-base font-semibold text-slate-900 leading-relaxed">{{ $q->prompt }}</p>
 
                                 @if($q->isMultipleChoice() && !empty($q->options_json))
-                                    <div class="grid gap-2 sm:grid-cols-2 pt-1 text-xs">
+                                    <div class="grid gap-2.5 sm:grid-cols-2 pt-1 text-xs sm:text-sm">
                                         @foreach($q->options_json as $opt)
                                             @php($isKey = ($q->answer_key !== null && strtoupper($opt['key']) === strtoupper($q->answer_key)))
-                                            <div class="rounded-lg p-2 {{ $isKey ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-300' : 'bg-slate-50 text-slate-700 border border-slate-200' }}">
+                                            <div class="rounded-xl p-3 {{ $isKey ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-300' : 'bg-slate-50 text-slate-700 border border-slate-200' }}">
                                                 <span class="font-bold">{{ $opt['key'] }}.</span> {{ $opt['text'] }}
                                                 @if($isKey)
-                                                    <span class="ml-1 text-[10px] text-emerald-700 font-bold">&#10003; Kunci</span>
+                                                    <span class="ml-1.5 text-xs text-emerald-700 font-bold">&#10003; Kunci</span>
                                                 @endif
                                             </div>
                                         @endforeach
                                     </div>
                                 @elseif($q->isShortAnswer())
-                                    <div class="rounded-lg bg-emerald-50 p-2 text-xs text-emerald-900 border border-emerald-300">
+                                    <div class="rounded-xl bg-emerald-50 p-3 text-xs sm:text-sm text-emerald-900 border border-emerald-300">
                                         <strong>Kunci Jawaban:</strong> {{ $q->answer_key }}
                                     </div>
                                 @endif
 
                                 @if($q->explanation)
-                                    <p class="text-[11px] text-slate-500 italic pt-1">
+                                    <p class="text-xs text-slate-500 italic pt-1">
                                         <span class="font-semibold text-slate-600">Pembahasan:</span> {{ $q->explanation }}
                                     </p>
                                 @endif
@@ -266,7 +266,7 @@
                                 onsubmit="return confirm('Hapus butir pertanyaan nomor {{ $index + 1 }} ini?');">
                                 @csrf
                                 @method('delete')
-                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 hover:underline">
+                                <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-800 hover:underline">
                                     Hapus
                                 </button>
                             </form>

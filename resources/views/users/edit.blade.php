@@ -141,7 +141,7 @@
         @php
             $profile = $user->lecturerProfile;
         @endphp
-        <div x-show="role === 'lecturer'" class="rounded-2xl border border-teal-200 bg-teal-50/20 p-6 shadow-xs space-y-4">
+        <div x-show="role === 'lecturer'" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50/20 p-6 shadow-xs space-y-4">
             <div class="flex items-center justify-between border-b border-teal-100 pb-2">
                 <h2 class="text-sm font-bold uppercase tracking-wider text-teal-900">
                     2. Profil Akademik Dosen (Untuk BKD & Siakad)

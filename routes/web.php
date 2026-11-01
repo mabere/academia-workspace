@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
 
     Route::post('/courses/{course}/materials', [CourseMaterialController::class, 'store'])->name('courses.materials.store');
+    Route::put('/courses/{course}/materials/{material}', [CourseMaterialController::class, 'update'])->name('courses.materials.update');
     Route::get('/courses/{course}/materials/{material}/download', [CourseMaterialController::class, 'download'])->name('courses.materials.download');
     Route::get('/courses/{course}/materials/{material}/stream', [CourseMaterialController::class, 'stream'])->name('courses.materials.stream');
     Route::delete('/courses/{course}/materials/{material}', [CourseMaterialController::class, 'destroy'])->name('courses.materials.destroy');
@@ -114,6 +115,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/courses/{course}/sessions/print', [CourseSessionController::class, 'print'])->name('courses.sessions.print');
 
     Route::post('/courses/{course}/assignments', [CourseAssignmentController::class, 'store'])->name('courses.assignments.store');
+    Route::post('/courses/{course}/assignments/ai-generate', [CourseAssignmentController::class, 'generateWithAi'])->middleware('throttle:10,1')->name('courses.assignments.ai-generate');
     Route::get('/courses/{course}/assignments/{assignment}/edit', [CourseAssignmentController::class, 'edit'])->name('courses.assignments.edit');
     Route::put('/courses/{course}/assignments/{assignment}', [CourseAssignmentController::class, 'update'])->name('courses.assignments.update');
     Route::delete('/courses/{course}/assignments/{assignment}', [CourseAssignmentController::class, 'destroy'])->name('courses.assignments.destroy');

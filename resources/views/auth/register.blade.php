@@ -1,15 +1,15 @@
 @extends('layouts.hub')
 @section('title', 'Daftar Akun — Academia Workspace')
 @section('content')
-<div class="mx-auto max-w-xl py-6 sm:py-12">
-    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+<div class="mx-auto max-w-xl py-6 sm:py-10">
+    <div class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-lg">
         {{-- Header Card --}}
-        <div class="border-b border-slate-100 bg-linear-to-b from-slate-50 to-white px-6 py-8 text-center sm:px-10">
-            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#05285c]/5 p-2 shadow-2xs">
+        <div class="border-b border-slate-100 bg-linear-to-b from-slate-50/90 to-white px-6 py-8 text-center sm:px-10">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#05285c]/5 p-2.5 ring-1 ring-[#05285c]/10">
                 <img src="{{ asset('apple-touch-icon.png') }}" width="48" height="48" alt="Logo" class="h-10 w-10 object-contain">
             </div>
-            <h1 class="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Pendaftaran Akun Baru</h1>
-            <p class="mt-2 text-xs sm:text-sm text-slate-600">
+            <h1 class="mt-4 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">Pendaftaran Akun Baru</h1>
+            <p class="mt-2 text-sm text-slate-600">
                 Bergabung ke ekosistem Academia Workspace untuk kegiatan pembelajaran dan akademik.
             </p>
         </div>
@@ -17,35 +17,19 @@
         {{-- Form Body --}}
         <div class="px-6 py-8 sm:px-10">
             {{-- Notice for Lecturer Accounts --}}
-            <div class="mb-6 rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-xs text-teal-950">
-                <div class="flex items-start gap-2.5">
-                    <svg class="h-4 w-4 text-teal-700 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="mb-6 rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-xs sm:text-sm text-teal-950">
+                <div class="flex items-start gap-3">
+                    <svg class="h-5 w-5 text-teal-700 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
                         <p class="font-bold">Informasi Akun Dosen / Tenaga Pendidik:</p>
-                        <p class="mt-0.5 text-slate-600 leading-relaxed">
-                            Formulir ini diperuntukkan bagi <strong>Mahasiswa</strong> dan <strong>Pengguna Umum</strong>. Akun Dosen dengan akses manajemen perkuliahan & BKD dikonfigurasikan secara terpusat oleh Administrator.
+                        <p class="mt-1 text-slate-600 leading-relaxed">
+                            Formulir ini diperuntukkan bagi <strong>Mahasiswa</strong> dan <strong>Pengguna Umum</strong>. Akun Dosen dengan akses manajemen perkuliahan &amp; BKD dikonfigurasikan secara terpusat oleh Administrator.
                         </p>
                     </div>
                 </div>
             </div>
-
-            {{-- Error Flash Alert --}}
-            @if ($errors->any())
-                <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs text-rose-900">
-                    <div class="flex items-start gap-3">
-                        <svg class="h-5 w-5 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <ul class="space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                </div>
-            @endif
 
             <form method="post" action="{{ route('register') }}" class="space-y-5">
                 @csrf
@@ -69,10 +53,11 @@
                             value="{{ old('name') }}"
                             autocomplete="name"
                             autofocus
+                            placeholder="Nama lengkap sesuai identitas akademik"
                             class="has-icon-left w-full rounded-xl border-slate-300 text-sm focus:border-teal-600 focus:ring-teal-600 @error('name') border-rose-300 bg-rose-50/30 @enderror">
                     </div>
                     @error('name')
-                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        <p class="mt-1.5 text-xs font-medium text-rose-600">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -94,10 +79,11 @@
                             name="email"
                             value="{{ old('email') }}"
                             autocomplete="email"
+                            placeholder="nama@student.ac.id"
                             class="has-icon-left w-full rounded-xl border-slate-300 text-sm focus:border-teal-600 focus:ring-teal-600 @error('email') border-rose-300 bg-rose-50/30 @enderror">
                     </div>
                     @error('email')
-                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        <p class="mt-1.5 text-xs font-medium text-rose-600">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -115,7 +101,7 @@
                         <option value="public" @selected(old('role') === 'public')>Pengguna Umum / Peneliti Tamu</option>
                     </select>
                     @error('role')
-                        <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                        <p class="mt-1.5 text-xs font-medium text-rose-600">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -129,7 +115,7 @@
                             <button
                                 type="button"
                                 @click="showPass = !showPass"
-                                class="text-[11px] font-semibold text-teal-800 hover:text-teal-950 transition">
+                                class="text-xs font-semibold text-teal-800 hover:text-teal-950 transition">
                                 <span x-text="showPass ? 'Sembunyikan' : 'Tampilkan'"></span>
                             </button>
                         </div>
@@ -148,9 +134,9 @@
                                 autocomplete="new-password"
                                 class="has-icon-left w-full rounded-xl border-slate-300 text-sm focus:border-teal-600 focus:ring-teal-600 @error('password') border-rose-300 bg-rose-50/30 @enderror">
                         </div>
-                        <p class="mt-1 text-[11px] text-slate-500">Minimal 10 karakter kombinasi huruf dan angka.</p>
+                        <p class="mt-1.5 text-xs text-slate-500">Minimal 10 karakter kombinasi huruf dan angka.</p>
                         @error('password')
-                            <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                            <p class="mt-1.5 text-xs font-medium text-rose-600">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -179,7 +165,7 @@
                 <div class="pt-2">
                     <button
                         type="submit"
-                        class="w-full flex items-center justify-center gap-2 rounded-xl bg-[#05285c] px-5 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-[#041e45] focus:outline-none focus:ring-2 focus:ring-[#05285c] focus:ring-offset-2 transition">
+                        class="w-full flex items-center justify-center gap-2 rounded-xl bg-[#05285c] px-5 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-[#041e45] focus:outline-none focus:ring-2 focus:ring-[#05285c] focus:ring-offset-2 transition">
                         <span>Buat Akun Sekarang</span>
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -189,7 +175,7 @@
             </form>
 
             {{-- Footer Link --}}
-            <div class="mt-8 border-t border-slate-100 pt-6 text-center text-xs text-slate-600">
+            <div class="mt-8 border-t border-slate-100 pt-6 text-center text-sm text-slate-600">
                 <p>
                     Sudah memiliki akun?
                     <a href="{{ route('login') }}" class="font-bold text-[#00a98f] hover:text-teal-900 underline transition">

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Course extends Model
 {
@@ -14,6 +15,7 @@ class Course extends Model
         'study_program_id',
         'lecturer_id',
         'code',
+        'slug',
         'name',
         'credit_hours',
         'class_group',
@@ -25,6 +27,58 @@ class Course extends Model
         'syllabus',
         'status',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Course $course) {
+            if (empty($course->slug) || ($course->exists && $course->isDirty(['code', 'class_group']))) {
+                $course->slug = static::generateUniqueSlug(
+                    $course->code,
+                    $course->class_group ?? 'A',
+                    $course->name,
+                    $course->id
+                );
+            }
+        });
+    }
+
+    public static function generateUniqueSlug(string $code, string $classGroup, ?string $name = null, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($code . ' ' . $classGroup);
+        if (empty($base)) {
+            $base = Str::slug($name ?: 'course');
+        }
+
+        $slug = $base;
+        $counter = 1;
+
+        while (static::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $counter++;
+            $slug = $base . '-' . $counter;
+        }
+
+        return $slug;
+    }
+
+    public function getRouteKey(): mixed
+    {
+        return $this->slug ?: $this->id;
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?Model
+    {
+        if ($field) {
+            return parent::resolveRouteBinding($value, $field);
+        }
+
+        return $this->where('slug', $value)
+            ->orWhere(function ($query) use ($value) {
+                if (is_numeric($value)) {
+                    $query->where('id', (int) $value);
+                }
+            })
+            ->first() ?? abort(404);
+    }
 
     protected function casts(): array
     {
@@ -125,5 +179,37 @@ class Course extends Model
             $rate = round(min(100, ($attendedCount / $totalSessions) * 100), 1);
             $courseStudent->update(['attendance_rate' => $rate]);
         }
+    }
+
+    /**
+     * Memecah CPMK (syllabus) menjadi daftar butir terpisah untuk format bullet/numbering.
+     *
+     * @return array<int, string>
+     */
+    public function cpmkList(): array
+    {
+        if (empty(trim($this->syllabus ?? ''))) {
+            return [];
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', trim($this->syllabus));
+        $items = [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed !== '') {
+                $items[] = $trimmed;
+            }
+        }
+
+        // Jika hanya 1 baris panjang tetapi mengandung beberapa nomor butir (misal: "1. ... 2. ...")
+        if (count($items) === 1 && preg_match('/\b[1-9]\s*[\.\)]\s+/', $items[0])) {
+            $split = preg_split('/(?<=\.)\s+(?=[1-9]\s*[\.\)])/', $items[0]);
+            if (count($split) > 1) {
+                return array_map('trim', $split);
+            }
+        }
+
+        return $items;
     }
 }

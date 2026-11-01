@@ -8,6 +8,8 @@ use App\Models\Project;
 use App\Models\WritingAssignment;
 use App\Models\WritingSubmission;
 use App\Notifications\AcademicNotification;
+use App\Services\Ai\AssignmentAiService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +25,7 @@ class CourseAssignmentController extends Controller
         abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
 
         $data = $request->validate([
+            'course_session_id' => ['nullable', 'integer'],
             'title' => ['required', 'string', 'max:180'],
             'instructions' => ['required', 'string', 'max:10000'],
             'assignment_type' => ['nullable', 'string', 'in:writing,stimulus_exam,hybrid,translation,milestone_artifact'],
@@ -59,6 +62,14 @@ class CourseAssignmentController extends Controller
             );
 
             $configJson = [];
+            if (! empty($data['course_session_id'])) {
+                $session = $course->sessions()->find($data['course_session_id']);
+                if ($session) {
+                    $configJson['course_session_id'] = $session->id;
+                    $configJson['session_number'] = $session->session_number;
+                    $configJson['session_topic'] = $session->topic;
+                }
+            }
             if ($request->hasFile('audio_file')) {
                 $configJson['audio_file_path'] = $request->file('audio_file')->store("courses/{$course->id}/audio", 'local');
                 $configJson['audio_max_plays'] = isset($data['audio_max_plays']) ? (int) $data['audio_max_plays'] : 2;
@@ -222,6 +233,7 @@ class CourseAssignmentController extends Controller
         abort_unless($assignment->course_id === $course->id, 404);
 
         $data = $request->validate([
+            'course_session_id' => ['nullable', 'integer'],
             'title' => ['required', 'string', 'max:180'],
             'instructions' => ['required', 'string', 'max:10000'],
             'assignment_type' => ['nullable', 'string', 'in:writing,stimulus_exam,hybrid,translation,milestone_artifact'],
@@ -244,6 +256,19 @@ class CourseAssignmentController extends Controller
 
         DB::transaction(function () use ($course, $assignment, $data, $request) {
             $configJson = $assignment->config_json ?? [];
+
+            if (array_key_exists('course_session_id', $data)) {
+                if (! empty($data['course_session_id'])) {
+                    $session = $course->sessions()->find($data['course_session_id']);
+                    if ($session) {
+                        $configJson['course_session_id'] = $session->id;
+                        $configJson['session_number'] = $session->session_number;
+                        $configJson['session_topic'] = $session->topic;
+                    }
+                } else {
+                    unset($configJson['course_session_id'], $configJson['session_number'], $configJson['session_topic']);
+                }
+            }
 
             if ($request->boolean('delete_audio')) {
                 if (! empty($configJson['audio_file_path'])) {
@@ -627,6 +652,85 @@ class CourseAssignmentController extends Controller
                 'final_grade' => null,
                 'letter_grade' => null,
             ]);
+        }
+    }
+
+    /**
+     * Endpoint API AJAX untuk generate rancangan tugas & rubrik perkuliahan dengan AI.
+     */
+    public function generateWithAi(Request $request, Course $course, AssignmentAiService $aiService): JsonResponse
+    {
+        abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
+
+        $validated = $request->validate([
+            'session_id' => ['nullable', 'integer'],
+            'topic' => ['nullable', 'string', 'max:255'],
+            'assignment_focus' => ['nullable', 'string', 'max:255'],
+            'assignment_type' => ['nullable', 'string', 'in:writing,stimulus_exam,hybrid,translation,milestone_artifact'],
+            'bloom_level' => ['nullable', 'string', 'max:60'],
+            'include_rubric' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'provider' => ['nullable', 'string', 'in:deepseek,gemini,openai'],
+        ]);
+
+        $sessionContext = [];
+        if (! empty($validated['session_id'])) {
+            $session = $course->sessions()->find($validated['session_id']);
+            if (! $session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi pertemuan perkuliahan yang dipilih tidak ditemukan pada kelas ini.',
+                ], 422);
+            }
+
+            $sessionContext['session_id'] = $session->id;
+            $sessionContext['session_number'] = $session->session_number;
+            $sessionContext['meeting_topic'] = $session->topic;
+            $sessionContext['meeting_material'] = trim(
+                ($session->teaching_method ? "Metode Ajar: {$session->teaching_method}. " : '').
+                ($session->notes ? "Catatan Sesi: {$session->notes}" : '')
+            );
+
+            // Ringkasan bahan ajar terkait sesi pertemuan tersebut jika ada
+            $materials = $course->materials()
+                ->where('session_number', $session->session_number)
+                ->get(['title', 'material_type', 'description']);
+
+            if ($materials->isNotEmpty()) {
+                $sessionContext['materials_summary'] = $materials->map(function ($m) {
+                    return "- {$m->title} ({$m->material_type})".($m->description ? ": {$m->description}" : '');
+                })->implode("\n");
+            }
+        }
+
+        $topic = $sessionContext['meeting_topic'] ?? ($validated['topic'] ?? null);
+        if (empty($topic)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan pilih sesi pertemuan perkuliahan atau masukkan topik penugasan terlebih dahulu.',
+            ], 422);
+        }
+
+        $params = array_merge($validated, $sessionContext);
+
+        try {
+            $draft = $aiService->generateAssignmentDraft($course, $params);
+
+            return response()->json([
+                'success' => true,
+                'data' => $draft,
+                'provider' => $validated['provider'] ?? config('ai.assignment_provider', 'deepseek'),
+                'session' => $sessionContext ? [
+                    'id' => $sessionContext['session_id'] ?? null,
+                    'session_number' => $sessionContext['session_number'] ?? null,
+                    'topic' => $sessionContext['meeting_topic'] ?? null,
+                ] : null,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         }
     }
 }

@@ -90,7 +90,7 @@ class CourseController extends Controller
             'sessions' => fn ($q) => $q->with([
                 'attendances' => fn ($aq) => $user->isStaff()
                     ? $aq->with('student')
-                    : $aq->where('student_id', $user->id)->with('student'),
+                    : $aq->where('user_id', $user->id)->with('student'),
             ]),
             'students.student.studyProgram',
             'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with([
