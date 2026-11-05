@@ -139,8 +139,22 @@ class WritingAssignmentController extends Controller
     {
         Gate::authorize('view', $assignment);
 
-        $assignment->load(['project', 'students', 'versions' => fn ($query) => $query->orderByDesc('version'), 'rubric' => fn ($query) => $query->orderByDesc('version')]);
-        $submissions = $assignment->submissions()->with(['student', 'revisions.feedbackReports', 'revisions.assignmentVersion', 'revisions.rubricVersion']);
+        $assignment->load([
+            'course.lecturer',
+            'course.students.student.studyProgram',
+            'project',
+            'students',
+            'questions',
+            'versions' => fn ($query) => $query->orderByDesc('version'),
+            'rubric' => fn ($query) => $query->orderByDesc('version'),
+        ]);
+        $submissions = $assignment->submissions()->with([
+            'student.studyProgram',
+            'grader',
+            'revisions' => fn ($rq) => $rq->orderBy('revision_number')->with(['feedbackReports', 'assignmentVersion', 'rubricVersion']),
+            'answers.question',
+            'attempts',
+        ]);
         if (Auth::user()->role === 'student') {
             $submissions->where('student_id', Auth::id());
         }
@@ -157,13 +171,20 @@ class WritingAssignmentController extends Controller
         Gate::authorize('submitRevision', $assignment);
         abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
 
+        $submission = WritingSubmission::where('assignment_id', $assignment->id)->where('student_id', Auth::id())->first();
+        abort_if($submission?->submitted_at && ! $assignment->allow_revisions, 409, 'Dosen tidak mengizinkan revisi tambahan untuk tugas ini.');
+
         $data = $request->validate([
             'body_text' => ['nullable', 'string', 'max:50000'],
             'document_file' => ['nullable', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
             'artifact_url' => ['nullable', 'url', 'max:500'],
             'milestone_id' => ['nullable', 'integer'],
             'notes' => ['nullable', 'string', 'max:10000'],
+            'section_responses' => ['nullable', 'array', 'max:12'],
+            'section_responses.*' => ['nullable', 'string', 'max:50000'],
         ]);
+
+        $sectionAnswers = $this->validatedSectionAnswers($assignment, $data['section_responses'] ?? []);
 
         $bodyText = ! empty($data['body_text']) ? trim($data['body_text']) : '';
 
@@ -178,11 +199,18 @@ class WritingAssignmentController extends Controller
             }
         }
 
-        if (mb_strlen($bodyText) < 20 && empty($data['artifact_url'])) {
+        if (! empty($sectionAnswers)) {
+            $sectionTitles = collect($assignment->config_json['sections'] ?? [])->keyBy('key');
+            $bodyText = collect($sectionAnswers)->map(function ($answer, $key) use ($sectionTitles) {
+                return ($sectionTitles[$key]['title'] ?? 'Bagian tugas')."\n".$answer;
+            })->implode("\n\n");
+        }
+
+        if (mb_strlen($bodyText) < 20 && empty($data['artifact_url']) && empty(array_filter($sectionAnswers))) {
             return back()->withErrors(['body_text' => 'Teks naskah tugas atau hasil ekstraksi berkas minimal 20 karakter (atau sertakan tautan artefak digital).']);
         }
 
-        DB::transaction(function () use ($assignment, $bodyText, $data) {
+        DB::transaction(function () use ($assignment, $bodyText, $data, $sectionAnswers) {
             $assignmentVersionId = $assignment->versions()->orderByDesc('version')->value('id');
             $rubricVersionId = $assignment->rubric()->orderByDesc('version')->value('id');
             $submission = WritingSubmission::firstOrCreate(['assignment_id' => $assignment->id, 'student_id' => Auth::id()]);
@@ -194,6 +222,7 @@ class WritingAssignmentController extends Controller
                 'rubric_version_id' => $rubricVersionId,
                 'revision_number' => $number,
                 'body_text' => $bodyText,
+                'section_answers' => $sectionAnswers,
                 'artifact_url' => ! empty($data['artifact_url']) ? trim($data['artifact_url']) : null,
                 'milestone_id' => ! empty($data['milestone_id']) ? (int) $data['milestone_id'] : null,
                 'notes' => ! empty($data['notes']) ? trim($data['notes']) : null,
@@ -201,19 +230,28 @@ class WritingAssignmentController extends Controller
             ]);
             $submission->update([
                 'status' => 'submitted',
+                'score' => null,
+                'graded_by' => null,
+                'graded_at' => null,
                 'artifact_url' => ! empty($data['artifact_url']) ? trim($data['artifact_url']) : $submission->artifact_url,
                 'current_milestone_id' => ! empty($data['milestone_id']) ? (int) $data['milestone_id'] : $submission->current_milestone_id,
                 'notes' => ! empty($data['notes']) ? trim($data['notes']) : $submission->notes,
                 'submitted_at' => now(),
+                'draft_body_text' => null,
+                'draft_artifact_url' => null,
+                'draft_milestone_id' => null,
+                'draft_notes' => null,
+                'draft_section_answers' => null,
+                'draft_saved_at' => null,
             ]);
 
             // Beri notifikasi ke dosen pengampu jika tugas terhubung dengan mata kuliah
             if ($assignment->course && $assignment->course->lecturer) {
                 $studentUser = Auth::user();
                 $assignment->course->lecturer->notify(new AcademicNotification(
-                    title: 'Submisi Draf Tugas Baru',
-                    message: "Mahasiswa {$studentUser->name} telah mengumpulkan draf untuk tugas \"{$assignment->title}\" ({$assignment->course->name}).",
-                    actionUrl: route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']),
+                    title: 'Submisi Tugas Baru',
+                    message: "Mahasiswa {$studentUser->name} telah mengumpulkan jawaban untuk tugas \"{$assignment->title}\" ({$assignment->course->name}).",
+                    actionUrl: route('assignments.show', $assignment),
                     icon: 'assignment',
                     category: 'assignment',
                     meta: ['course_id' => $assignment->course_id, 'assignment_id' => $assignment->id, 'student_id' => $studentUser->id]
@@ -221,7 +259,96 @@ class WritingAssignmentController extends Controller
             }
         });
 
-        return back()->with('status', 'Revisi tersimpan sebagai versi baru.');
+        return back()->with('status', 'Jawaban berhasil dikumpulkan.');
+    }
+
+    public function saveDraft(Request $request, WritingAssignment $assignment, DocumentTextExtractor $extractor): RedirectResponse
+    {
+        Gate::authorize('submitRevision', $assignment);
+        abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
+        abort_if(
+            $assignment->submissions()->where('student_id', Auth::id())->whereNotNull('submitted_at')->exists() && ! $assignment->allow_revisions,
+            409,
+            'Dosen tidak mengizinkan revisi tambahan untuk tugas ini.'
+        );
+
+        $data = $request->validate([
+            'body_text' => ['nullable', 'string', 'max:50000'],
+            'document_file' => ['nullable', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
+            'artifact_url' => ['nullable', 'url', 'max:500'],
+            'milestone_id' => ['nullable', 'integer'],
+            'notes' => ['nullable', 'string', 'max:10000'],
+            'section_responses' => ['nullable', 'array', 'max:12'],
+            'section_responses.*' => ['nullable', 'string', 'max:50000'],
+        ]);
+
+        $sectionAnswers = $this->validatedSectionAnswers($assignment, $data['section_responses'] ?? []);
+
+        $bodyText = trim((string) ($data['body_text'] ?? ''));
+        if ($request->hasFile('document_file')) {
+            try {
+                $bodyText = $extractor->extract($request->file('document_file')) ?: $bodyText;
+            } catch (\Throwable $e) {
+                return back()->withErrors(['document_file' => 'Gagal mengekstrak teks berkas: '.$e->getMessage()])->withInput();
+            }
+        }
+
+        if (! empty($sectionAnswers)) {
+            $sectionTitles = collect($assignment->config_json['sections'] ?? [])->keyBy('key');
+            $bodyText = collect($sectionAnswers)->map(fn ($answer, $key) => ($sectionTitles[$key]['title'] ?? 'Bagian tugas')."\n".$answer)->implode("\n\n");
+        }
+
+        $submission = WritingSubmission::firstOrNew([
+            'assignment_id' => $assignment->id,
+            'student_id' => Auth::id(),
+        ]);
+        $submission->fill([
+            'status' => 'draft',
+            'draft_body_text' => $bodyText,
+            'draft_artifact_url' => $data['artifact_url'] ?? null,
+            'draft_milestone_id' => $data['milestone_id'] ?? null,
+            'draft_notes' => $data['notes'] ?? null,
+            'draft_section_answers' => $sectionAnswers,
+            'draft_saved_at' => now(),
+        ])->save();
+
+        return back()->with('status', 'Draf tugas berhasil disimpan. Anda dapat melanjutkannya dan mengirim nanti.');
+    }
+
+    /** @return array<string, string> */
+    private function validatedSectionAnswers(WritingAssignment $assignment, array $answers): array
+    {
+        $sections = $assignment->config_json['sections'] ?? [];
+        $result = [];
+
+        foreach ($sections as $section) {
+            $key = $section['key'] ?? null;
+            if (! $key) {
+                continue;
+            }
+
+            $value = trim((string) ($answers[$key] ?? ''));
+            if (($section['required'] ?? false) && $value === '') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'section_responses.'.$key => 'Bagian "'.($section['title'] ?? 'Tugas').'" wajib diisi.',
+                ]);
+            }
+            if ($value !== '' && in_array($section['response_type'] ?? '', ['url', 'audio_video'], true)
+                && ! filter_var($value, FILTER_VALIDATE_URL)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'section_responses.'.$key => 'Masukkan tautan yang valid untuk bagian ini.',
+                ]);
+            }
+            if ($value !== '' && ($section['response_type'] ?? '') === 'numeric' && ! is_numeric($value)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'section_responses.'.$key => 'Masukkan nilai angka yang valid.',
+                ]);
+            }
+
+            $result[$key] = $value;
+        }
+
+        return $result;
     }
 
     public function extractDocument(Request $request, DocumentTextExtractor $extractor): JsonResponse

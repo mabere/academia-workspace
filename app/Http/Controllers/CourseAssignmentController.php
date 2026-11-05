@@ -7,6 +7,7 @@ use App\Models\CourseStudent;
 use App\Models\Project;
 use App\Models\WritingAssignment;
 use App\Models\WritingSubmission;
+use App\Models\WritingSubmissionAttempt;
 use App\Notifications\AcademicNotification;
 use App\Services\Ai\AssignmentAiService;
 use Illuminate\Http\JsonResponse;
@@ -39,10 +40,32 @@ class CourseAssignmentController extends Controller
             'source_language' => ['nullable', 'string', 'max:60'],
             'target_language' => ['nullable', 'string', 'max:60'],
             'due_at' => ['nullable', 'date'],
+            'allow_revisions' => ['nullable', 'boolean'],
             'feedback_language' => ['nullable', 'string', 'in:id,en'],
             'feedback_level' => ['nullable', 'string', 'in:direct,indirect,balanced'],
             'rubric_name' => ['nullable', 'string', 'max:120'],
+            'cpmk_indices' => ['nullable', 'array'],
+            'cpmk_indices.*' => ['integer', 'min:0'],
+            'sections' => ['nullable', 'array', 'max:12'],
+            'sections.*.title' => ['nullable', 'string', 'max:120'],
+            'sections.*.prompt' => ['nullable', 'string', 'max:2000'],
+            'sections.*.response_type' => ['nullable', 'in:long_text,url,audio_video,numeric'],
+            'sections.*.weight' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'sections.*.required' => ['nullable', 'boolean'],
+            'sections.*.cpmk_indices' => ['nullable', 'array'],
+            'sections.*.cpmk_indices.*' => ['integer', 'min:0'],
         ]);
+
+        if (($data['assignment_type'] ?? 'writing') === 'hybrid'
+            && (int) ($data['mcq_weight_percentage'] ?? 30) + (int) ($data['essay_weight_percentage'] ?? 70) !== 100) {
+            return back()->withErrors(['essay_weight_percentage' => 'Jumlah bobot pilihan ganda dan esai harus 100%.'])->withInput();
+        }
+
+        $data['cpmk_outcomes'] = $this->selectedCpmkOutcomes($course, $data['cpmk_indices'] ?? []);
+        $data['sections'] = $this->normalizeSections($course, $data['sections'] ?? []);
+        if ($this->sectionWeightTotal($data['sections']) !== 0.0 && abs($this->sectionWeightTotal($data['sections']) - 100) > 0.01) {
+            return back()->withErrors(['sections' => 'Jika bobot bagian digunakan, jumlahnya harus 100%.'])->withInput();
+        }
 
         $createdAssignment = null;
 
@@ -62,6 +85,8 @@ class CourseAssignmentController extends Controller
             );
 
             $configJson = [];
+            $configJson['cpmk_outcomes'] = $data['cpmk_outcomes'];
+            $configJson['sections'] = $data['sections'];
             if (! empty($data['course_session_id'])) {
                 $session = $course->sessions()->find($data['course_session_id']);
                 if ($session) {
@@ -127,6 +152,7 @@ class CourseAssignmentController extends Controller
                 'feedback_level' => $data['feedback_level'] ?? 'indirect',
                 'status' => 'published',
                 'due_at' => $data['due_at'] ?? null,
+                'allow_revisions' => $data['allow_revisions'] ?? true,
             ]);
 
             $createdAssignment = $assignment;
@@ -146,7 +172,8 @@ class CourseAssignmentController extends Controller
                 'feedback_level' => $assignment->feedback_level,
                 'status' => $assignment->status,
                 'due_at' => $assignment->due_at,
-                'created_by' => Auth::id(),
+                'edited_by' => Auth::id(),
+                'assessment_config' => ['cpmk_outcomes' => $configJson['cpmk_outcomes'] ?? [], 'sections' => $configJson['sections'] ?? []],
             ]);
 
             // Buat rubrik penilaian analitik default sesuai format tugas
@@ -251,11 +278,35 @@ class CourseAssignmentController extends Controller
             'feedback_language' => ['nullable', 'string', 'in:id,en'],
             'feedback_level' => ['nullable', 'string', 'in:direct,indirect,balanced'],
             'rubric_name' => ['nullable', 'string', 'max:120'],
+            'cpmk_indices' => ['nullable', 'array'],
+            'cpmk_indices.*' => ['integer', 'min:0'],
+            'sections' => ['nullable', 'array', 'max:12'],
+            'sections.*.title' => ['nullable', 'string', 'max:120'],
+            'sections.*.prompt' => ['nullable', 'string', 'max:2000'],
+            'sections.*.response_type' => ['nullable', 'in:long_text,url,audio_video,numeric'],
+            'sections.*.weight' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'sections.*.required' => ['nullable', 'boolean'],
+            'sections.*.cpmk_indices' => ['nullable', 'array'],
+            'sections.*.cpmk_indices.*' => ['integer', 'min:0'],
             'delete_audio' => ['nullable', 'boolean'],
+            'allow_revisions' => ['nullable', 'boolean'],
         ]);
+
+        if (($data['assignment_type'] ?? $assignment->assignment_type) === 'hybrid'
+            && (int) ($data['mcq_weight_percentage'] ?? 30) + (int) ($data['essay_weight_percentage'] ?? 70) !== 100) {
+            return back()->withErrors(['essay_weight_percentage' => 'Jumlah bobot pilihan ganda dan esai harus 100%.'])->withInput();
+        }
+
+        $data['cpmk_outcomes'] = $this->selectedCpmkOutcomes($course, $data['cpmk_indices'] ?? []);
+        $data['sections'] = $this->normalizeSections($course, $data['sections'] ?? []);
+        if ($this->sectionWeightTotal($data['sections']) !== 0.0 && abs($this->sectionWeightTotal($data['sections']) - 100) > 0.01) {
+            return back()->withErrors(['sections' => 'Jika bobot bagian digunakan, jumlahnya harus 100%.'])->withInput();
+        }
 
         DB::transaction(function () use ($course, $assignment, $data, $request) {
             $configJson = $assignment->config_json ?? [];
+            $configJson['cpmk_outcomes'] = $data['cpmk_outcomes'];
+            $configJson['sections'] = $data['sections'];
 
             if (array_key_exists('course_session_id', $data)) {
                 if (! empty($data['course_session_id'])) {
@@ -349,6 +400,9 @@ class CourseAssignmentController extends Controller
                 'feedback_language' => $data['feedback_language'] ?? 'id',
                 'feedback_level' => $data['feedback_level'] ?? 'indirect',
                 'due_at' => $data['due_at'] ?? null,
+                'allow_revisions' => array_key_exists('allow_revisions', $data)
+                    ? (bool) $data['allow_revisions']
+                    : $assignment->allow_revisions,
             ]);
 
             $nextVersion = (int) $assignment->versions()->max('version') + 1;
@@ -360,7 +414,8 @@ class CourseAssignmentController extends Controller
                 'feedback_level' => $assignment->feedback_level,
                 'status' => $assignment->status,
                 'due_at' => $assignment->due_at,
-                'created_by' => Auth::id(),
+                'edited_by' => Auth::id(),
+                'assessment_config' => ['cpmk_outcomes' => $configJson['cpmk_outcomes'] ?? [], 'sections' => $configJson['sections'] ?? []],
             ]);
 
             if (! empty($data['rubric_name'])) {
@@ -374,6 +429,42 @@ class CourseAssignmentController extends Controller
         return redirect()
             ->route('courses.show', ['course' => $course, 'tab' => 'assignments'])
             ->with('status', 'Tugas perkuliahan "'.$assignment->title.'" berhasil diperbarui.');
+    }
+
+    /** @return array<int, string> */
+    private function selectedCpmkOutcomes(Course $course, array $indices): array
+    {
+        $outcomes = $course->cpmkList();
+
+        return collect($indices)->map(fn ($index) => $outcomes[(int) $index] ?? null)
+            ->filter(fn ($outcome) => is_string($outcome) && trim($outcome) !== '')
+            ->map(fn ($outcome) => trim($outcome))->unique()->values()->all();
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function normalizeSections(Course $course, array $sections): array
+    {
+        return collect($sections)->values()->map(function ($section, $index) use ($course) {
+            if (! is_array($section) || trim((string) ($section['title'] ?? '')) === '') {
+                return null;
+            }
+
+            return [
+                'key' => 's'.$index,
+                'title' => trim($section['title']),
+                'prompt' => trim((string) ($section['prompt'] ?? '')),
+                'response_type' => in_array($section['response_type'] ?? '', ['long_text', 'url', 'audio_video', 'numeric'], true)
+                    ? $section['response_type'] : 'long_text',
+                'weight' => (float) ($section['weight'] ?? 0),
+                'required' => filter_var($section['required'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'cpmk_outcomes' => $this->selectedCpmkOutcomes($course, $section['cpmk_indices'] ?? []),
+            ];
+        })->filter()->values()->all();
+    }
+
+    private function sectionWeightTotal(array $sections): float
+    {
+        return round(collect($sections)->sum(fn ($section) => (float) ($section['weight'] ?? 0)), 2);
     }
 
     public function destroy(Request $request, Course $course, WritingAssignment $assignment): RedirectResponse
@@ -410,6 +501,7 @@ class CourseAssignmentController extends Controller
     {
         abort_unless($request->user()->id === $course->lecturer_id || in_array($request->user()->role, ['admin', 'superadmin'], true), 403);
         abort_unless($assignment->course_id === $course->id && $submission->assignment_id === $assignment->id, 404);
+        abort_unless(in_array($submission->status, ['submitted', 'graded'], true), 409, 'Draf mahasiswa belum dapat dinilai sebelum dikirim.');
 
         $data = $request->validate([
             'score' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -425,12 +517,25 @@ class CourseAssignmentController extends Controller
                 'status' => 'graded',
             ]);
 
+            if ($assignment->isStimulusExam() || $assignment->isHybrid()) {
+                WritingSubmissionAttempt::updateOrCreate(
+                    ['submission_id' => $submission->id, 'attempt_number' => $submission->current_attempt ?: 1],
+                    [
+                        'status' => 'graded',
+                        'submitted_at' => $submission->submitted_at,
+                        'score' => $data['score'],
+                        'graded_by' => Auth::id(),
+                        'graded_at' => now(),
+                    ]
+                );
+            }
+
             // Jika ada revisi terbaru, simpan atau mutakhirkan laporan feedback dosen
             $latestRevision = $submission->revisions()->latest('revision_number')->first();
             if ($latestRevision) {
                 $feedbackReport = $latestRevision->feedbackReports()->first();
                 $payload = [
-                    'overall_summary' => ($data['feedback_notes'] ?? null) ?: 'Penilaian dan umpan balik tugas oleh dosen pengampu.',
+                    'overall_summary' => trim((string) ($data['feedback_notes'] ?? '')),
                     'score' => $data['score'],
                     'criteria_scores' => $data['criteria_scores'] ?? [],
                     'evaluated_by' => Auth::user()->name,
@@ -461,8 +566,8 @@ class CourseAssignmentController extends Controller
             if ($submission->student) {
                 $submission->student->notify(new AcademicNotification(
                     title: 'Nilai & Evaluasi Tugas Dirilis',
-                    message: "Draf tugas Anda untuk \"{$assignment->title}\" ({$course->name}) telah dinilai dosen. Nilai: {$data['score']}/100.",
-                    actionUrl: route('courses.show', ['course' => $course, 'tab' => 'assignments']),
+                    message: "Tugas Anda untuk \"{$assignment->title}\" ({$course->name}) telah dinilai. Nilai: {$data['score']}/100.",
+                    actionUrl: route('assignments.show', $assignment),
                     icon: 'grade',
                     category: 'grade',
                     meta: ['course_id' => $course->id, 'assignment_id' => $assignment->id, 'score' => $data['score']]
@@ -476,9 +581,7 @@ class CourseAssignmentController extends Controller
     public function printGrades(Request $request, Course $course): View
     {
         $user = $request->user();
-        if (! $user->isStaff()) {
-            abort_unless($course->students()->where('student_id', $user->id)->exists(), 403);
-        }
+        abort_unless($user->isStaff() && ($user->id === $course->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true)), 403);
 
         $course->load([
             'academicPeriod',

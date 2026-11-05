@@ -1,32 +1,44 @@
 @extends('layouts.hub')
-@section('title', $assignment->title.' — WriteWise ELT')
+@section('title', $assignment->title)
 @section('content')
-<a href="{{ $assignment->course_id ? route('courses.show', ['course' => $assignment->course_id, 'tab' => 'assignments']) : (auth()->user()->isStaff() ? route('projects.show', $assignment->project) : route('dashboard')) }}" class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-teal-800 hover:underline">← Kembali ke {{ $assignment->course_id ? 'Daftar Tugas Perkuliahan' : 'Proyek' }}</a>
+<a href="{{ $assignment->course ? route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']) : (auth()->user()->isStaff() ? route('projects.show', $assignment->project) : route('dashboard')) }}" class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-teal-800 hover:underline">← Kembali ke {{ $assignment->course ? $assignment->course->name : 'Proyek' }}</a>
 <section class="relative mt-3 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
     <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-teal-700 via-teal-500 to-emerald-500"></div>
     <div class="flex flex-wrap items-start justify-between gap-3 pt-1">
         <div>
-            <p class="text-xs sm:text-sm font-bold uppercase tracking-wider text-teal-800">{{ $assignment->course ? $assignment->course->name.' ('.$assignment->course->code.')' : $assignment->project->name }} · WriteWise ELT</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-teal-800">{{ $assignment->course ? $assignment->course->code.' · '.$assignment->course->name : $assignment->project->name }}</span>
+                @if(!empty($assignment->config_json['session_number']))
+                    <span class="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-bold text-indigo-800">
+                        Pertemuan {{ $assignment->config_json['session_number'] }}
+                    </span>
+                @endif
+                <span class="rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-[11px] font-bold text-teal-800">
+                    {{ $assignment->typeLabel() }}
+                </span>
+                <span class="rounded-lg {{ $assignment->status === 'published' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200' }} px-2.5 py-0.5 text-[11px] font-bold">
+                    {{ $assignment->status === 'published' ? 'Terbit' : 'Draf' }}
+                </span>
+            </div>
             <h1 class="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{{ $assignment->title }}</h1>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="rounded-full {{ $assignment->status === 'published' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200' }} px-3 py-1 text-xs font-semibold">{{ $assignment->status === 'published' ? 'Tugas terbit' : 'Draf dosen' }}</span>
-            @if(auth()->user()->isStaff() && ($assignment->course_id ? (auth()->id() === $assignment->course->lecturer_id || auth()->user()->role === 'admin') : ($assignment->project->isOwnedBy(auth()->user()) || $assignment->project->hasEditor(auth()->user()))))
+        <div class="flex flex-wrap items-center gap-2">
+            @if(auth()->user()->isStaff() && ($assignment->course_id ? (auth()->id() === $assignment->course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)) : ($assignment->project->isOwnedBy(auth()->user()) || $assignment->project->hasEditor(auth()->user()))))
+                @if($assignment->isStimulusExam() || $assignment->isHybrid())
+                    <a href="{{ route('assignments.questions.index', $assignment) }}"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition">
+                        <span>Kelola Soal ({{ $assignment->questions->count() }})</span>
+                    </a>
+                @endif
                 @if($assignment->course_id)
-                    <a href="{{ route('courses.assignments.edit', [$assignment->course_id, $assignment]) }}" class="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
-                        <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                    <a href="{{ route('courses.assignments.edit', [$assignment->course, $assignment]) }}" class="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
                         Sunting
                     </a>
                 @endif
-                <form method="post" action="{{ $assignment->course_id ? route('courses.assignments.destroy', [$assignment->course_id, $assignment]) : route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus tugas ini secara permanen?');" class="inline">
+                <form method="post" action="{{ $assignment->course_id ? route('courses.assignments.destroy', [$assignment->course, $assignment]) : route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Hapus tugas ini secara permanen?');" class="inline">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition">
-                        <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
                         Hapus
                     </button>
                 </form>
@@ -34,13 +46,20 @@
         </div>
     </div>
     <div class="mt-4 whitespace-pre-wrap text-sm sm:text-base leading-relaxed text-slate-700 font-sans">{{ $assignment->instructions }}</div>
+    @if($assignment->course && !empty($assignment->config_json['cpmk_outcomes']))
+        <div class="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
+            <h2 class="text-xs font-bold uppercase tracking-wide text-indigo-950">CPMK</h2>
+            <ul class="mt-2 list-disc space-y-1 pl-5 text-xs sm:text-sm text-indigo-950">
+                @foreach($assignment->config_json['cpmk_outcomes'] as $outcome)<li>{{ preg_replace('/^(?:(?:\d+|cpmk\s*\d*)[.:)\s]+|[-*•]\s*)/iu', '', $outcome) }}</li>@endforeach
+            </ul>
+        </div>
+    @endif
     <div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs sm:text-sm text-slate-500">
-        <span>Feedback {{ $assignment->feedback_level }} · {{ $assignment->feedback_language === 'id' ? 'Bahasa Indonesia' : 'English' }}</span>
         @if($assignment->due_at)
-            <span class="font-medium text-amber-800">Tenggat {{ $assignment->due_at->format('d M Y, H:i') }}</span>
+            <span class="font-medium text-amber-800">Tenggat: {{ $assignment->due_at->format('d M Y, H:i') }} WIB</span>
         @endif
         @if($assignment->currentRubric)
-            <span>Rubrik v{{ $assignment->currentRubric->version }} · skala {{ $assignment->currentRubric->scale_min }}–{{ $assignment->currentRubric->scale_max }}</span>
+            <span>Rubrik: {{ $assignment->currentRubric->name }} (v{{ $assignment->currentRubric->version }})</span>
         @endif
     </div>
 </section>
@@ -122,425 +141,8 @@
 @endif
 
 @if(auth()->user()->role === 'student')
-    {{-- Banner Khusus Tugas Penerjemahan Teks (Source Text Panel) --}}
-    @if($assignment->isTranslation() && !empty($assignment->config_json['source_text']))
-        <div class="mt-6 rounded-3xl border border-purple-200 bg-purple-50/50 p-6 sm:p-7 shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-purple-100 pb-3.5">
-                <div class="flex items-center gap-2.5">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-700 text-white font-bold text-xs">
-                        ST
-                    </span>
-                    <div>
-                        <h3 class="text-sm sm:text-base font-bold text-purple-950">
-                            Naskah Sumber (Source Text) — {{ $assignment->config_json['source_language'] ?? 'Bahasa Indonesia' }}
-                        </h3>
-                        <p class="text-xs text-purple-700">
-                            Terjemahkan teks di bawah ke dalam <strong>{{ $assignment->config_json['target_language'] ?? 'English' }}</strong> pada editor di bawah.
-                        </p>
-                    </div>
-                </div>
-                <span class="rounded-full bg-purple-100 px-3 py-1 text-xs font-mono font-semibold text-purple-800">
-                    {{ str_word_count($assignment->config_json['source_text']) }} kata
-                </span>
-            </div>
-            <div class="mt-4 max-h-96 overflow-y-auto whitespace-pre-line rounded-2xl bg-white p-5 sm:p-6 font-serif text-base leading-relaxed text-slate-800 border border-purple-100 shadow-2xs">
-                {{ $assignment->config_json['source_text'] }}
-            </div>
-        </div>
-    @endif
-
-    {{-- Banner Khusus Tugas Milestone Proposal (Progress Tracker) --}}
-    @if($assignment->isMilestone() && !empty($assignment->config_json['milestones']))
-        <div class="mt-6 rounded-3xl border border-rose-200 bg-rose-50/40 p-6 sm:p-7 shadow-sm">
-            <div class="flex items-center justify-between border-b border-rose-100 pb-3.5">
-                <div>
-                    <h3 class="text-sm sm:text-base font-bold text-rose-950">Alur Pengumpulan Proposal Bertahap (Milestone Roadmap)</h3>
-                    <p class="text-xs text-rose-700">Selesaikan setiap bab secara terstruktur sesuai tahapan bimbingan akademik.</p>
-                </div>
-                <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800">
-                    {{ count($assignment->config_json['milestones']) }} Tahapan
-                </span>
-            </div>
-            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                @foreach($assignment->config_json['milestones'] as $m)
-                    <div class="rounded-2xl border border-rose-200 bg-white p-4 shadow-2xs">
-                        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-rose-700 text-white font-bold text-xs">
-                            {{ $m['id'] }}
-                        </span>
-                        <h4 class="mt-2.5 text-xs sm:text-sm font-bold text-slate-900">{{ $m['title'] }}</h4>
-                        @if(!empty($m['description']))
-                            <p class="mt-1 text-xs text-slate-500 leading-relaxed">{{ $m['description'] }}</p>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    @endif
-
-    <section class="mt-8 grid gap-6 lg:grid-cols-2">
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm" x-data="{
-            text: @js(old('body_text', '')),
-            extracting: false,
-            submitting: false,
-            extractSuccess: false,
-            extractMessage: '',
-            selectedFileName: '',
-            get wordCount() {
-                return this.text.trim() ? this.text.trim().split(/\s+/).length : 0;
-            },
-            get charCount() {
-                return this.text.length;
-            },
-            async handleFileChange(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                this.selectedFileName = file.name;
-                this.extracting = true;
-                this.extractSuccess = false;
-                this.extractMessage = '';
-
-                const formData = new FormData();
-                formData.append('document_file', file);
-                formData.append('_token', '{{ csrf_token() }}');
-
-                try {
-                    const response = await fetch('{{ route('assignments.extract-document') }}', {
-                        method: 'POST',
-                        body: formData,
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    const data = await response.json();
-                    if (response.ok && data.success) {
-                        this.text = data.text;
-                        this.extractSuccess = true;
-                        this.extractMessage = `Ekstraksi berhasil: ${data.word_count} kata (${data.char_count} karakter) diekstrak dari ${data.filename}.`;
-                    } else {
-                        alert(data.message || 'Gagal mengekstrak teks dari berkas.');
-                    }
-                } catch (e) {
-                    alert('Terjadi kendala saat membaca dokumen. Anda juga dapat menyalin-tempel teks secara langsung.');
-                } finally {
-                    this.extracting = false;
-                }
-            }
-        }">
-            <div class="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">
-                        {{ $assignment->isTranslation() ? 'Kirim Terjemahan (Target Text)' : ($assignment->isMilestone() ? 'Kirim Draf Milestone' : 'Kirim Revisi Tugas') }}
-                    </h2>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Unggah berkas Word / PDF atau ketik langsung di editor WriteWise.</p>
-                </div>
-                <span class="rounded-full px-3 py-1 text-xs font-bold border {{ $assignment->typeBadgeColor() }}">
-                    {{ $assignment->typeLabel() }}
-                </span>
-            </div>
-
-            @if($assignment->due_at && $assignment->due_at->isPast())
-                <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    <div class="flex items-center gap-2 font-bold">
-                        <span>⚠️ Tenggat Tugas Telah Berakhir</span>
-                    </div>
-                    <p class="mt-1 text-xs sm:text-sm text-amber-800">
-                        Batas akhir pengumpulan draf tugas adalah {{ $assignment->due_at->format('d M Y, H:i') }} WIB. Pengiriman revisi telah ditutup oleh sistem.
-                    </p>
-                </div>
-            @else
-                {{-- Kotak Ekstraksi Berkas Word/PDF --}}
-                <div class="mt-4 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div class="flex items-center gap-2.5">
-                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-800 text-white font-bold text-xs shadow-xs">
-                                📄
-                            </div>
-                            <div>
-                                <span class="text-xs sm:text-sm font-bold text-slate-900 block">Ekstraksi Otomatis Dokumen</span>
-                                <span class="text-xs text-slate-500">Mendukung berkas Microsoft Word (.docx), PDF (.pdf), atau Text (.txt)</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-teal-800 px-3.5 py-2 text-xs font-bold text-white hover:bg-teal-700 shadow-xs transition" :class="{ 'opacity-60 cursor-not-allowed': extracting }">
-                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                <span x-text="extracting ? 'Mengekstrak Teks...' : 'Unggah & Ekstrak Berkas'"></span>
-                                <input type="file" accept=".docx,.pdf,.txt" class="hidden" @change="handleFileChange" :disabled="extracting">
-                            </label>
-                        </div>
-                    </div>
-
-                    {{-- Status Banner Ekstraksi --}}
-                    <div x-show="extractSuccess" x-cloak class="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                            <span>✓</span>
-                            <span x-text="extractMessage"></span>
-                        </div>
-                        <button type="button" @click="extractSuccess = false" class="text-emerald-700 hover:text-emerald-900 font-bold">&times;</button>
-                    </div>
-
-                    <div x-show="extracting" x-cloak class="mt-3 text-xs text-teal-800 flex items-center gap-2">
-                        <svg class="animate-spin h-4 w-4 text-teal-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Sedang membaca dan mengekstrak teks dokumen naskah...</span>
-                    </div>
-                </div>
-
-                {{-- Form Pengiriman Submisi Revisi --}}
-                <form method="post" action="{{ route('assignments.revisions.store', $assignment) }}" enctype="multipart/form-data" class="mt-4 space-y-4" @submit="submitting = true">
-                    @csrf
-
-                    {{-- Input Khusus Format Milestone: Pilihan Tahap Milestone --}}
-                    @if($assignment->isMilestone() && !empty($assignment->config_json['milestones']))
-                        <div>
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700">Pilih Tahap Milestone yang Anda Kumpulkan *</label>
-                            <select name="milestone_id" required class="mt-1.5 w-full rounded-xl border-slate-300 text-sm focus:border-rose-700 focus:ring-rose-700 shadow-xs">
-                                @foreach($assignment->config_json['milestones'] as $m)
-                                    <option value="{{ $m['id'] }}">{{ $m['title'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700">Tautan Artefak Digital / Presentasi (YouTube, Google Drive, GitHub, Figma)</label>
-                            <input type="url" name="artifact_url" placeholder="https://youtube.com/watch?v=... atau https://drive.google.com/..."
-                                class="mt-1.5 w-full rounded-xl border-slate-300 text-sm focus:border-rose-700 focus:ring-rose-700 shadow-xs">
-                            <p class="mt-1 text-xs text-slate-500">Tautan video presentasi unlisted, berkas slide seminar, atau repositori proyek.</p>
-                        </div>
-                    @endif
-
-                    <div>
-                        <div class="flex items-center justify-between pb-1.5">
-                            <label class="block text-xs sm:text-sm font-semibold text-slate-700">
-                                {{ $assignment->isTranslation() ? 'Teks Naskah Hasil Terjemahan (Target Text) *' : ($assignment->isMilestone() ? 'Naskah Draf Bab Proposal *' : 'Teks Naskah Esai / Tulisan Akademik *') }}
-                            </label>
-                            <span class="text-xs font-mono text-slate-500" x-text="wordCount + ' kata · ' + charCount + ' karakter'"></span>
-                        </div>
-                        <textarea required minlength="20" maxlength="50000" name="body_text" rows="12" x-model="text"
-                            class="w-full rounded-2xl border-slate-300 p-4 font-serif text-base leading-relaxed text-slate-800 focus:border-teal-700 focus:ring-teal-700 shadow-xs"
-                            placeholder="Ketik, tempelkan draf naskah, atau gunakan tombol 'Unggah & Ekstrak Berkas' di atas..."></textarea>
-                    </div>
-
-                    {{-- Kolom Catatan Padanan Penerjemahan (Untuk Format Translation) --}}
-                    @if($assignment->isTranslation())
-                        <div>
-                            <label class="block text-xs sm:text-sm font-semibold text-purple-900">Catatan Padanan & Strategi Penerjemahan (Translator's Notes)</label>
-                            <textarea name="notes" rows="3" placeholder="Catat alasan pemilihan padanan istilah sulit, modulasi, transposisi, atau adaptasi budaya pada terjemahan ini..."
-                                class="mt-1.5 w-full rounded-xl border-purple-200 bg-purple-50/30 text-sm text-slate-800 focus:border-purple-700 focus:ring-purple-700 shadow-xs"></textarea>
-                        </div>
-                    @endif
-
-                    {{-- Kolom Refleksi / Ringkasan Eksekutif (Untuk Format Milestone) --}}
-                    @if($assignment->isMilestone())
-                        <div>
-                            <label class="block text-xs sm:text-sm font-semibold text-rose-900">Catatan Refleksi / Ringkasan Pembaruan Draf</label>
-                            <textarea name="notes" rows="3" placeholder="Jelaskan ringkasan perubahan dari draf bimbingan sebelumnya atau poin penting yang ingin dikonsultasikan..."
-                                class="mt-1.5 w-full rounded-xl border-rose-200 bg-rose-50/30 text-sm text-slate-800 focus:border-rose-700 focus:ring-rose-700 shadow-xs"></textarea>
-                        </div>
-                    @endif
-
-                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-                        <span class="text-xs text-slate-500">
-                            Minimal 20 karakter · Naskah akan dievaluasi sesuai CPMK & rubrik akademik kelas.
-                        </span>
-                        <button type="submit" :disabled="submitting || extracting" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 shadow transition disabled:opacity-60 disabled:cursor-not-allowed">
-                            <span x-text="submitting ? 'Mengirim Revisi...' : 'Kirim Sebagai Revisi Baru →'">Kirim Sebagai Revisi Baru &rarr;</span>
-                        </button>
-                    </div>
-                </form>
-            @endif
-        </div>
-        <div>
-            <h2 class="text-xl font-bold text-slate-900">Riwayat revisi dan feedback</h2>
-            @forelse($assignment->submissions as $submission)
-                <div class="mt-4 space-y-4">
-                    @foreach($submission->revisions as $index => $revision)
-                        <article class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-3 shadow-2xs">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <p class="text-sm font-bold text-slate-900">
-                                    Revisi {{ $revision->revision_number }}
-                                    <span class="font-normal text-slate-500">· {{ $revision->submitted_at->format('d M Y H:i') }}</span>
-                                </p>
-                                @if($revision->milestone_id)
-                                    <span class="rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-xs font-bold">
-                                        {{ $revision->milestoneTitle() }}
-                                    </span>
-                                @endif
-                            </div>
-
-                            @if($revision->artifact_url)
-                                <div class="flex items-center gap-2 rounded-xl bg-slate-50 p-3 border border-slate-200">
-                                    <span class="text-xs font-bold text-slate-700">Tautan Artefak Digital:</span>
-                                    <a href="{{ $revision->artifact_url }}" target="_blank" rel="noopener noreferrer"
-                                        class="text-xs font-bold text-teal-800 underline hover:text-teal-900 truncate">
-                                        {{ $revision->artifact_url }} &nearr;
-                                    </a>
-                                </div>
-                            @endif
-
-                            @if($revision->notes)
-                                <details class="rounded-xl bg-slate-50 p-3 border border-slate-200">
-                                    <summary class="cursor-pointer text-xs font-semibold text-slate-800">
-                                        {{ $assignment->isTranslation() ? 'Catatan Padanan & Strategi Penerjemahan' : 'Catatan / Refleksi Mahasiswa' }}
-                                    </summary>
-                                    <p class="mt-1.5 text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">{{ $revision->notes }}</p>
-                                </details>
-                            @endif
-
-                            <details class="mt-2">
-                                <summary class="cursor-pointer text-sm font-semibold text-teal-800">Lihat teks revisi</summary>
-                                <p class="mt-2 whitespace-pre-line font-serif text-sm sm:text-base leading-relaxed text-slate-700">{{ $revision->body_text }}</p>
-                            </details>
-
-                            @if($index > 0)
-                                @php($previousRevision = $submission->revisions[$index - 1])
-                                <details class="mt-4 rounded-xl border border-slate-200 p-3.5">
-                                    <summary class="cursor-pointer text-sm font-semibold text-slate-800">Bandingkan dengan revisi {{ $previousRevision->revision_number }}</summary>
-                                    <div class="mt-3 grid gap-3 md:grid-cols-2">
-                                        <div class="rounded-xl bg-slate-50 p-3.5">
-                                            <p class="mb-2 text-xs font-semibold uppercase text-slate-500">Sebelumnya · revisi {{ $previousRevision->revision_number }}</p>
-                                            <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $previousRevision->body_text }}</p>
-                                        </div>
-                                        <div class="rounded-xl bg-teal-50 p-3.5">
-                                            <p class="mb-2 text-xs font-semibold uppercase text-teal-800">Terbaru · revisi {{ $revision->revision_number }}</p>
-                                            <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $revision->body_text }}</p>
-                                        </div>
-                                    </div>
-                                </details>
-                            @endif
-
-                            @foreach($revision->feedbackReports->where('status', 'published') as $report)
-                                <div class="mt-4 rounded-xl border border-teal-200 bg-teal-50/70 p-4">
-                                    <p class="text-xs font-bold uppercase tracking-wider text-teal-800">Feedback dosen</p>
-                                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-800">{{ $report->feedback_json['overall_summary'] ?? '' }}</p>
-                                    <p class="mt-2 text-xs text-teal-900">Diterbitkan {{ $report->published_at?->format('d M Y H:i') }}</p>
-                                </div>
-                            @endforeach
-                        </article>
-                    @endforeach
-                </div>
-            @empty
-                <div class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-                    Belum ada revisi. Kirim tulisan pertama Anda melalui formulir.
-                </div>
-            @endforelse
-        </div>
-    </section>
+    @include('assignments.show-student')
 @else
-    <section class="mt-8">
-        <div class="flex flex-wrap items-end justify-between gap-3">
-            <div>
-                <h2 class="text-xl font-bold text-slate-900">Submission mahasiswa</h2>
-                <p class="mt-1 text-sm text-slate-600">Feedback draf hanya terlihat oleh tim pengajar sampai diterbitkan.</p>
-            </div>
-            <span class="rounded-full {{ $aiFeedbackAvailable ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-700' }} px-3 py-1 text-xs font-semibold">{{ $aiFeedbackAvailable ? 'Gateway AI siap' : 'Feedback AI nonaktif' }}</span>
-        </div>
-        @forelse($assignment->submissions as $submission)
-            <article class="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 class="text-base font-bold text-slate-900">{{ $submission->student->name }}</h3>
-                @foreach($submission->revisions as $index => $revision)
-                    <div class="mt-4 border-t border-slate-100 pt-4">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <p class="font-semibold text-slate-900">
-                                    Revisi {{ $revision->revision_number }}
-                                    <span class="text-sm font-normal text-slate-500">· {{ $revision->submitted_at->format('d M Y H:i') }}</span>
-                                    @if($revision->milestone_id)
-                                        <span class="ml-2 rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-xs font-bold">
-                                            {{ $revision->milestoneTitle() }}
-                                        </span>
-                                    @endif
-                                </p>
-                                <p class="mt-1 text-xs text-slate-500">Tugas v{{ $revision->assignmentVersion?->version ?? '—' }} · Rubrik v{{ $revision->rubricVersion?->version ?? '—' }}</p>
-                            </div>
-                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Ditulis mahasiswa · AI tidak mengirim teks</span>
-                        </div>
-
-                        @if($revision->artifact_url)
-                            <div class="mt-2.5 flex items-center gap-2 rounded-xl bg-slate-50 p-3 border border-slate-200">
-                                <span class="text-xs font-bold text-slate-700">Tautan Artefak Digital:</span>
-                                <a href="{{ $revision->artifact_url }}" target="_blank" rel="noopener noreferrer"
-                                    class="text-xs font-bold text-teal-800 underline hover:text-teal-900 truncate">
-                                    {{ $revision->artifact_url }} &nearr;
-                                </a>
-                            </div>
-                        @endif
-
-                        @if($revision->notes)
-                            <details class="mt-2.5 rounded-xl bg-slate-50 p-3 border border-slate-200">
-                                <summary class="cursor-pointer text-xs font-semibold text-slate-800">
-                                    {{ $assignment->isTranslation() ? 'Catatan Padanan & Strategi Penerjemahan' : 'Catatan / Refleksi Mahasiswa' }}
-                                </summary>
-                                <p class="mt-1.5 text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">{{ $revision->notes }}</p>
-                            </details>
-                        @endif
-
-                        <div class="mt-3 rounded-xl bg-slate-50/70 border border-slate-200/80 p-4">
-                            <p class="whitespace-pre-line font-serif text-sm sm:text-base leading-relaxed text-slate-800">{{ $revision->body_text }}</p>
-                        </div>
-
-                        @if($index > 0)
-                            @php($previousRevision = $submission->revisions[$index - 1])
-                            <details class="mt-4 rounded-xl border border-slate-200 p-3.5">
-                                <summary class="cursor-pointer text-sm font-semibold text-slate-800">Bandingkan revisi {{ $previousRevision->revision_number }} dan {{ $revision->revision_number }}</summary>
-                                <div class="mt-3 grid gap-3 md:grid-cols-2">
-                                    <div class="rounded-xl bg-slate-50 p-3.5">
-                                        <p class="mb-2 text-xs font-semibold uppercase text-slate-500">Sebelumnya</p>
-                                        <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $previousRevision->body_text }}</p>
-                                    </div>
-                                    <div class="rounded-xl bg-teal-50 p-3.5">
-                                        <p class="mb-2 text-xs font-semibold uppercase text-teal-800">Terbaru</p>
-                                        <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $revision->body_text }}</p>
-                                    </div>
-                                </div>
-                            </details>
-                        @endif
-
-                        @php($draftReports = $revision->feedbackReports->where('status', 'draft'))
-                        @forelse($draftReports as $report)
-                            <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                <p class="text-xs font-bold uppercase tracking-wider text-amber-900">Draf feedback {{ $report->provider ? 'AI · perlu ditinjau' : 'dosen' }}</p>
-                                <form method="post" action="{{ route('feedback.update', $report) }}" class="mt-3 space-y-2.5">
-                                    @csrf
-                                    @method('PATCH')
-                                    <label class="block text-sm font-semibold text-slate-800">Ringkasan feedback<textarea name="feedback_json[overall_summary]" required maxlength="5000" rows="3" class="mt-1.5 w-full rounded-xl border-slate-300 text-sm leading-relaxed">{{ $report->feedback_json['overall_summary'] ?? '' }}</textarea></label>
-                                    <button class="rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-800 hover:bg-amber-100/50 transition">Simpan suntingan</button>
-                                </form>
-                                <form method="post" action="{{ route('feedback.publish', $report) }}" class="mt-2">
-                                    @csrf
-                                    <button class="rounded-xl bg-teal-700 px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-teal-800 transition">Terbitkan ke mahasiswa</button>
-                                </form>
-                            </div>
-                        @empty
-                            <div class="mt-4 flex flex-wrap items-end gap-3">
-                                <form method="post" action="{{ route('feedback.store', $revision) }}" class="min-w-72 flex-1 space-y-2.5">
-                                    @csrf
-                                    <label class="block text-sm font-semibold text-slate-800">Draf umpan balik dosen<textarea name="overall_summary" required maxlength="5000" rows="3" class="mt-1.5 w-full rounded-xl border-slate-300 text-sm leading-relaxed"></textarea></label>
-                                    <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Simpan draf manual</button>
-                                </form>
-                                @if($aiFeedbackAvailable)
-                                    <form method="post" action="{{ route('feedback.generate', $revision) }}">
-                                        @csrf
-                                        <button class="rounded-xl border border-teal-700 bg-teal-50/50 px-4 py-2 text-xs sm:text-sm font-semibold text-teal-800 hover:bg-teal-50 transition">Buat draf AI untuk ditinjau</button>
-                                    </form>
-                                @endif
-                            </div>
-                        @endforelse
-
-                        @foreach($revision->feedbackReports->where('status', 'published') as $report)
-                            <div class="mt-4 rounded-2xl border border-teal-200 bg-teal-50/70 p-4">
-                                <p class="text-xs font-bold uppercase tracking-wider text-teal-800">Feedback diterbitkan · {{ $report->published_at?->format('d M Y H:i') }}</p>
-                                <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-800">{{ $report->feedback_json['overall_summary'] ?? '' }}</p>
-                            </div>
-                        @endforeach
-                    </div>
-                @endforeach
-            </article>
-        @empty
-            <div class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">Belum ada submission mahasiswa.</div>
-        @endforelse
-    </section>
+    @include('assignments.show-staff')
 @endif
 @endsection

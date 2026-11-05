@@ -7,6 +7,7 @@ use App\Models\AssignmentQuestionAnswer;
 use App\Models\CourseStudent;
 use App\Models\WritingAssignment;
 use App\Models\WritingSubmission;
+use App\Models\WritingSubmissionAttempt;
 use App\Notifications\AcademicNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -55,16 +56,29 @@ class AssignmentExamController extends Controller
             'question_type' => ['required', 'string', 'in:multiple_choice,short_answer,essay'],
             'stimulus_type' => ['nullable', 'string', 'in:audio,reading_text,none'],
             'prompt' => ['required', 'string', 'max:5000'],
-            'options' => ['nullable', 'array'],
+            'options' => ['nullable', 'array', 'max:10'],
+            'options.*' => ['nullable', 'string', 'max:500'],
             'answer_key' => ['nullable', 'string', 'max:100'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             'explanation' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $optionsJson = null;
-        if ($data['question_type'] === 'multiple_choice' && ! empty($request->input('options'))) {
+        if ($data['question_type'] === 'multiple_choice') {
+            $options = $request->input('options', []);
+            $validKeys = collect($options)
+                ->filter(fn ($text) => trim((string) $text) !== '')
+                ->keys()
+                ->map(fn ($key) => strtoupper(trim((string) $key)))
+                ->all();
+            $answerKey = strtoupper(trim((string) ($data['answer_key'] ?? '')));
+
+            if (count($validKeys) < 2 || ! in_array($answerKey, $validKeys, true)) {
+                return back()->withErrors(['answer_key' => 'Pilihan ganda memerlukan minimal dua opsi dan kunci jawaban yang sesuai.'])->withInput();
+            }
+
             $optionsJson = [];
-            foreach ($request->input('options') as $key => $text) {
+            foreach ($options as $key => $text) {
                 if (trim((string) $text) !== '') {
                     $optionsJson[] = [
                         'key' => strtoupper(trim((string) $key)),
@@ -117,6 +131,16 @@ class AssignmentExamController extends Controller
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
 
         abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak terdaftar pada mata kuliah ini.');
+        abort_unless($isLecturer || $assignment->status === 'published', 404);
+
+        if (! $isLecturer) {
+            $attempt = WritingSubmission::where('assignment_id', $assignment->id)
+                ->where('student_id', $user->id)
+                ->where('status', 'draft')
+                ->whereNotNull('started_at')
+                ->exists();
+            abort_unless($attempt, 403, 'Mulai ujian sebelum mengakses audio stimulus.');
+        }
 
         $audioPath = $assignment->config_json['audio_file_path'] ?? null;
         abort_unless($audioPath, 404, 'Berkas audio stimulus tidak ditemukan.');
@@ -150,6 +174,7 @@ class AssignmentExamController extends Controller
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
 
         abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak memiliki akses ke tugas ini.');
+        abort_unless($isLecturer || $assignment->status === 'published', 404);
 
         $maxPlays = (int) ($assignment->config_json['audio_max_plays'] ?? 2);
 
@@ -161,10 +186,12 @@ class AssignmentExamController extends Controller
             ]);
         }
 
-        $submission = WritingSubmission::firstOrCreate([
+        $submission = WritingSubmission::where([
             'assignment_id' => $assignment->id,
             'student_id' => $user->id,
-        ]);
+        ])->first();
+        abort_unless($submission, 409, 'Mulai ujian sebelum mengirim jawaban.');
+        abort_unless($submission->started_at && $submission->status === 'draft', 409, 'Audio hanya tersedia selama pengerjaan ujian.');
 
         $playsUsed = (int) ($submission->current_milestone_id ?? 0);
 
@@ -197,6 +224,7 @@ class AssignmentExamController extends Controller
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
 
         abort_unless($isLecturer || $isEnrolled, 403, 'Anda tidak memiliki akses ke tugas ini.');
+        abort_unless($isLecturer || $assignment->status === 'published', 404);
 
         $assignment->load(['questions' => fn ($q) => $q->orderBy('order'), 'course.lecturer']);
 
@@ -216,42 +244,37 @@ class AssignmentExamController extends Controller
             ]);
         }
 
-        // Mahasiswa: Ambil atau inisialisasi submisi
-        $submission = WritingSubmission::firstOrCreate([
+        // Membuka halaman soal tidak membuat submission ataupun memulai timer.
+        $submission = WritingSubmission::where([
             'assignment_id' => $assignment->id,
             'student_id' => $user->id,
-        ]);
+        ])->first();
 
         // Cek tenggat waktu jika belum mengumpulkan
-        if (! in_array($submission->status, ['submitted', 'graded'])) {
+        if (! $submission || ! in_array($submission->status, ['submitted', 'graded'])) {
             if ($assignment->due_at && $assignment->due_at->isPast()) {
                 return redirect()->route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments'])
                     ->withErrors(['exam' => 'Batas waktu pengumpulan tugas ini telah berakhir.']);
             }
         }
 
-        // Catat waktu mulai jika belum pernah dimulai
-        if ($submission->started_at === null) {
-            $submission->update(['started_at' => now()]);
-        }
-
         // Hitung sisa waktu jika ada timer
         $remainingSeconds = null;
-        if ($assignment->time_limit_minutes) {
+        if ($assignment->time_limit_minutes && $submission?->started_at) {
             $totalAllowed = $assignment->time_limit_minutes * 60;
             $elapsed = (int) abs(now()->diffInSeconds($submission->started_at));
             $remainingSeconds = max(0, $totalAllowed - $elapsed);
-
-            // Jika waktu telah habis dan belum submit, otomatis selesaikan
-            if ($remainingSeconds <= 0 && ! in_array($submission->status, ['submitted', 'graded'])) {
-                $submission->update(['submitted_at' => now(), 'status' => 'submitted']);
-            }
         }
 
-        $playsUsed = (int) ($submission->current_milestone_id ?? 0);
+        $playsUsed = (int) ($submission?->current_milestone_id ?? 0);
         $playsLeft = $maxPlays > 0 ? max(0, $maxPlays - $playsUsed) : 0;
 
-        $submission->load(['answers.question']);
+        if ($submission) {
+            $submission->setRelation('answers', $submission->answers()
+                ->where('attempt_number', $submission->current_attempt ?: 1)
+                ->with('question')
+                ->get());
+        }
 
         return view('assignments.exam', [
             'assignment' => $assignment,
@@ -262,6 +285,85 @@ class AssignmentExamController extends Controller
         ]);
     }
 
+    public function startExam(Request $request, WritingAssignment $assignment): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user->role === 'student' && $assignment->status === 'published', 403);
+        abort_unless($assignment->course?->students()->where('student_id', $user->id)->exists(), 403);
+        abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Batas waktu pengerjaan tugas ini telah berakhir.');
+
+        $submission = WritingSubmission::firstOrCreate(
+            ['assignment_id' => $assignment->id, 'student_id' => $user->id],
+            ['status' => 'draft', 'started_at' => now(), 'current_attempt' => 1]
+        );
+
+        if ($submission->submitted_at && ! $assignment->allow_revisions) {
+            abort(409, 'Dosen tidak mengizinkan revisi jawaban untuk tugas ini.');
+        }
+
+        $attemptNumber = (int) ($submission->current_attempt ?: 1);
+        if ($submission->submitted_at && $assignment->allow_revisions) {
+            $this->snapshotAttempt($submission, $attemptNumber);
+            $attemptNumber++;
+            $submission->update(['current_attempt' => $attemptNumber, 'started_at' => now(), 'status' => 'draft']);
+        } elseif (! $submission->started_at) {
+            $submission->update(['current_attempt' => $attemptNumber, 'started_at' => now(), 'status' => 'draft']);
+        }
+
+        WritingSubmissionAttempt::firstOrCreate(
+            ['submission_id' => $submission->id, 'attempt_number' => $attemptNumber],
+            ['status' => 'draft', 'started_at' => $submission->started_at ?? now()]
+        );
+
+        return redirect()->route('assignments.exam.take', $assignment);
+    }
+
+    public function saveExamDraft(Request $request, WritingAssignment $assignment): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user->role === 'student' && $assignment->status === 'published', 403);
+        abort_unless($assignment->course?->students()->where('student_id', $user->id)->exists(), 403);
+        abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Batas waktu pengerjaan tugas ini telah berakhir.');
+
+        $data = $request->validate([
+            'answers' => ['nullable', 'array'],
+            'answers.*' => ['nullable', 'string', 'max:10000'],
+            'essay_answer' => ['nullable', 'string', 'max:50000'],
+        ]);
+
+        $submission = WritingSubmission::firstOrCreate(
+            ['assignment_id' => $assignment->id, 'student_id' => $user->id],
+            ['status' => 'draft', 'started_at' => now(), 'current_attempt' => 1]
+        );
+        abort_if($submission->submitted_at && ! $assignment->allow_revisions, 409, 'Dosen tidak mengizinkan revisi jawaban untuk tugas ini.');
+
+        if ($submission->started_at && $assignment->time_limit_minutes) {
+            abort_if(now()->diffInSeconds($submission->started_at) > ($assignment->time_limit_minutes * 60) + 300, 409, 'Waktu ujian telah habis.');
+        }
+
+        DB::transaction(function () use ($assignment, $submission, $data): void {
+            foreach ($assignment->questions as $question) {
+                AssignmentQuestionAnswer::updateOrCreate(
+                    ['submission_id' => $submission->id, 'question_id' => $question->id, 'attempt_number' => $submission->current_attempt ?: 1],
+                    ['student_answer' => $data['answers'][$question->id] ?? null, 'is_correct' => null, 'score_awarded' => 0]
+                );
+            }
+
+            $submission->update([
+                'status' => 'draft',
+                'draft_body_text' => trim((string) ($data['essay_answer'] ?? '')),
+                'draft_saved_at' => now(),
+            ]);
+
+            WritingSubmissionAttempt::updateOrCreate(
+                ['submission_id' => $submission->id, 'attempt_number' => $submission->current_attempt ?: 1],
+                ['status' => 'draft', 'started_at' => $submission->started_at, 'answers_snapshot' => $this->answerSnapshot($assignment, $submission)]
+            );
+        });
+
+        return redirect()->route('assignments.exam.take', $assignment)->with('status', 'Draf jawaban ujian berhasil disimpan.');
+    }
+
     /**
      * Kirim Jawaban Ujian Stimulus / Hybrid Mahasiswa
      */
@@ -270,17 +372,22 @@ class AssignmentExamController extends Controller
         $user = Auth::user();
         $isEnrolled = $assignment->course?->students()->where('student_id', $user->id)->exists();
         abort_unless($isEnrolled, 403, 'Hanya mahasiswa terdaftar yang dapat mengumpulkan jawaban.');
+        abort_unless($assignment->status === 'published', 404);
+        abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Batas waktu pengumpulan tugas ini telah berakhir.');
 
-        $submission = WritingSubmission::firstOrCreate([
+        $submission = WritingSubmission::where([
             'assignment_id' => $assignment->id,
             'student_id' => $user->id,
-        ]);
+        ])->first();
+        abort_unless($submission, 409, 'Mulai ujian sebelum mengirim jawaban.');
 
         abort_if(
-            in_array($submission->status, ['submitted', 'graded']) && $submission->submitted_at !== null,
+            $submission->submitted_at !== null && ! $assignment->allow_revisions,
             409,
-            'Anda sudah pernah mengumpulkan jawaban untuk tugas ini.'
+            'Dosen tidak mengizinkan revisi jawaban untuk tugas ini.'
         );
+
+        abort_unless($submission->started_at, 409, 'Mulai pengerjaan sebelum mengirim jawaban.');
 
         if ($assignment->time_limit_minutes && $submission->started_at) {
             $maxAllowedSeconds = ($assignment->time_limit_minutes * 60) + 300;
@@ -292,8 +399,13 @@ class AssignmentExamController extends Controller
             );
         }
 
-        $answersInput = $request->input('answers', []);
-        $essayAnswer = $request->input('essay_answer', '');
+        $validated = $request->validate([
+            'answers' => ['nullable', 'array'],
+            'answers.*' => ['nullable', 'string', 'max:10000'],
+            'essay_answer' => ['nullable', 'string', 'max:50000'],
+        ]);
+        $answersInput = $validated['answers'] ?? [];
+        $essayAnswer = trim((string) ($validated['essay_answer'] ?? $submission->draft_body_text ?? ''));
 
         $questions = $assignment->questions()->orderBy('order')->get();
         $mcqQuestions = $questions->where('question_type', 'multiple_choice');
@@ -327,8 +439,9 @@ class AssignmentExamController extends Controller
 
                 AssignmentQuestionAnswer::updateOrCreate(
                     [
-                        'submission_id' => $submission->id,
+                    'submission_id' => $submission->id,
                         'question_id' => $question->id,
+                        'attempt_number' => $submission->current_attempt ?: 1,
                     ],
                     [
                         'student_answer' => $studentVal,
@@ -373,6 +486,8 @@ class AssignmentExamController extends Controller
                     'graded_at' => now(),
                     'graded_by' => $assignment->course?->lecturer_id,
                     'submitted_at' => now(),
+                    'draft_body_text' => null,
+                    'draft_saved_at' => null,
                 ]);
 
                 // Sinkronkan rata-rata nilai mahasiswa di kelas
@@ -381,10 +496,30 @@ class AssignmentExamController extends Controller
                 // Ujian hybrid: menunggu penilaian esai oleh dosen
                 $submission->update([
                     'mcq_score' => $mcqScore,
+                    'score' => null,
+                    'graded_at' => null,
+                    'graded_by' => null,
                     'status' => 'submitted',
                     'submitted_at' => now(),
+                    'draft_body_text' => null,
+                    'draft_saved_at' => null,
                 ]);
             }
+
+            WritingSubmissionAttempt::updateOrCreate(
+                ['submission_id' => $submission->id, 'attempt_number' => $submission->current_attempt ?: 1],
+                [
+                    'status' => $submission->fresh()->status,
+                    'started_at' => $submission->started_at,
+                    'submitted_at' => now(),
+                    'mcq_score' => $mcqScore,
+                    'essay_score' => $submission->essay_score,
+                    'score' => $submission->score,
+                    'graded_by' => $submission->graded_by,
+                    'graded_at' => $submission->graded_at,
+                    'answers_snapshot' => $this->answerSnapshot($assignment, $submission),
+                ]
+            );
 
             // Beri notifikasi ke dosen pengampu
             if ($assignment->course && $assignment->course->lecturer) {
@@ -447,5 +582,48 @@ class AssignmentExamController extends Controller
                     'letter_grade' => $letter,
                 ]);
         }
+    }
+
+    private function snapshotAttempt(WritingSubmission $submission, int $attemptNumber): void
+    {
+        $answers = $submission->answers()->where('attempt_number', $attemptNumber)->with('question')->get();
+        WritingSubmissionAttempt::updateOrCreate(
+            ['submission_id' => $submission->id, 'attempt_number' => $attemptNumber],
+            [
+                'status' => $submission->status,
+                'started_at' => $submission->started_at,
+                'submitted_at' => $submission->submitted_at,
+                'mcq_score' => $submission->mcq_score,
+                'essay_score' => $submission->essay_score,
+                'score' => $submission->score,
+                'graded_by' => $submission->graded_by,
+                'graded_at' => $submission->graded_at,
+                'answers_snapshot' => $answers->map(fn ($answer) => [
+                    'question_id' => $answer->question_id,
+                    'question' => $answer->question?->prompt,
+                    'answer' => $answer->student_answer,
+                    'is_correct' => $answer->is_correct,
+                    'score' => $answer->score_awarded,
+                ])->values()->all(),
+            ]
+        );
+    }
+
+    private function answerSnapshot(WritingAssignment $assignment, WritingSubmission $submission): array
+    {
+        return $assignment->questions->map(function ($question) use ($submission) {
+            $answer = $submission->answers()
+                ->where('question_id', $question->id)
+                ->where('attempt_number', $submission->current_attempt ?: 1)
+                ->first();
+
+            return [
+                'question_id' => $question->id,
+                'question' => $question->prompt,
+                'answer' => $answer?->student_answer,
+                'is_correct' => $answer?->is_correct,
+                'score' => $answer?->score_awarded,
+            ];
+        })->values()->all();
     }
 }

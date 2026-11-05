@@ -1,3 +1,5 @@
+import './pages/course-detail.js';
+
 const sidebarToggles = document.querySelectorAll('#sidebar-toggle, #sidebar-toggle-mobile');
 const mobileSidebarToggle = document.getElementById('sidebar-toggle-mobile');
 const sidebarBackdrop = document.getElementById('sidebar-backdrop');

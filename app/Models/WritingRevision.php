@@ -26,6 +26,7 @@ class WritingRevision extends Model
         'artifact_url',
         'milestone_id',
         'notes',
+        'section_answers',
         'submitted_at',
     ];
 
@@ -34,7 +35,17 @@ class WritingRevision extends Model
         return [
             'submitted_at' => 'datetime',
             'milestone_id' => 'integer',
+            'section_answers' => 'array',
         ];
+    }
+
+    public function label(): string
+    {
+        if ($this->revision_number === 1) {
+            return 'Pengumpulan Awal';
+        }
+
+        return 'Revisi ' . ($this->revision_number - 1);
     }
 
     public function milestoneTitle(): ?string

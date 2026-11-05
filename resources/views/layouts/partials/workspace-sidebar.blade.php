@@ -1,0 +1,147 @@
+        @if ($showSidebar)
+            <button id="sidebar-backdrop" type="button" aria-label="Tutup menu samping" class="sidebar-backdrop"
+                tabindex="-1"></button>
+            <aside id="workspace-sidebar" class="workspace-sidebar border-r border-slate-200/80 bg-white"
+                aria-label="Menu samping">
+                <div class="sidebar-inner flex h-full flex-col overflow-y-auto px-3 py-5">
+                    <div class="sidebar-heading mb-2 flex min-h-10 items-center justify-between gap-2 px-3">
+                        <p data-sidebar-label class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Workspace</p>
+                        <button id="sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded="true"
+                            aria-label="Ciutkan menu samping"
+                            class="sidebar-toggle-desktop inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700">
+                            <svg data-sidebar-icon="menu" aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            <svg data-sidebar-icon="close" aria-hidden="true" class="hidden h-5 w-5" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" d="m6 6 12 12M18 6 6 18" />
+                            </svg>
+                        </button>
+                    </div>
+                    <nav aria-label="Menu workspace" class="space-y-1">
+                        <p data-sidebar-label class="sidebar-section-label">Akademik &amp; Kelas</p>
+                        <a href="{{ route('dashboard') }}" @if (request()->routeIs('dashboard')) aria-current="page" @endif
+                            title="Dashboard"
+                            class="sidebar-link {{ request()->routeIs('dashboard') ? 'sidebar-link-active' : '' }}">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
+                            </svg><span data-sidebar-label>Dashboard</span>
+                        </a>
+                        <a href="{{ route('courses.index') }}"
+                            @if (request()->routeIs('courses.*')) aria-current="page" @endif title="Mata Kuliah"
+                            class="sidebar-link {{ request()->routeIs('courses.*') ? 'sidebar-link-active' : '' }}">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                            </svg><span data-sidebar-label>Mata Kuliah</span>
+                        </a>
+
+                        @if (auth()->user()->isStaff())
+                            <a href="{{ route('students.index') }}"
+                                @if (request()->routeIs('students.*')) aria-current="page" @endif title="Mahasiswa"
+                                class="sidebar-link {{ request()->routeIs('students.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
+                                </svg><span data-sidebar-label>Mahasiswa</span>
+                            </a>
+
+                            <p data-sidebar-label class="sidebar-section-label pt-4">Riset, Pengabdian &amp; BKD</p>
+                            <a href="{{ route('projects.index') }}"
+                                @if (request()->routeIs('projects.*')) aria-current="page" @endif title="Proyek"
+                                class="sidebar-link {{ request()->routeIs('projects.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M3 7.5A1.5 1.5 0 0 1 4.5 6H10l2 2h7.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
+                                </svg><span data-sidebar-label>Proyek</span>
+                            </a>
+                            <a href="{{ route('outputs.index') }}"
+                                @if (request()->routeIs('outputs.*')) aria-current="page" @endif title="Output & Evidence"
+                                class="sidebar-link {{ request()->routeIs('outputs.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M7 3.75h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.75a1 1 0 0 1 1-1z" />
+                                    <path stroke-linecap="round" d="M14 4v4h4M9 13h6M9 17h6" />
+                                </svg><span data-sidebar-label>Output &amp; Evidence</span>
+                            </a>
+                            <a href="{{ route('dashboard') }}#modules-heading" title="Modul" class="sidebar-link">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <rect x="4" y="4" width="6" height="6" rx="1" />
+                                    <rect x="14" y="4" width="6" height="6" rx="1" />
+                                    <rect x="4" y="14" width="6" height="6" rx="1" />
+                                    <rect x="14" y="14" width="6" height="6" rx="1" />
+                                </svg><span data-sidebar-label>Modul</span>
+                            </a>
+                        @endif
+
+                        @if (auth()->user()->role === 'superadmin')
+                            <p data-sidebar-label class="sidebar-section-label pt-4">Administrasi Sistem</p>
+                            <a href="{{ route('backups.index') }}"
+                                @if (request()->routeIs('backups.*')) aria-current="page" @endif title="Cadangan Data"
+                                class="sidebar-link {{ request()->routeIs('backups.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                                </svg><span data-sidebar-label>Cadangan Data</span>
+                            </a>
+                            <a href="{{ route('academic-structure.index') }}"
+                                @if (request()->routeIs('academic-structure.*')) aria-current="page" @endif title="Fakultas & Prodi"
+                                class="sidebar-link {{ request()->routeIs('academic-structure.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
+                                </svg><span data-sidebar-label>Fakultas &amp; Prodi</span>
+                            </a>
+                            <a href="{{ route('users.index') }}"
+                                @if (request()->routeIs('users.*')) aria-current="page" @endif title="Manajemen Pengguna"
+                                class="sidebar-link {{ request()->routeIs('users.*') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg><span data-sidebar-label>Manajemen Pengguna</span>
+                            </a>
+                            <a href="{{ route('corpuslab.reviews') }}"
+                                @if (request()->routeIs('corpuslab.reviews')) aria-current="page" @endif title="Review protokol korpus"
+                                class="sidebar-link {{ request()->routeIs('corpuslab.reviews') ? 'sidebar-link-active' : '' }}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" />
+                                </svg><span data-sidebar-label>Review protokol</span>
+                            </a>
+                        @endif
+
+                        @if (auth()->user()->role === 'student')
+                            <a href="{{ route('dashboard') }}#student-work-heading" title="Tugas saya"
+                                class="sidebar-link">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M7 3.75h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.75a1 1 0 0 1 1-1z" />
+                                    <path stroke-linecap="round" d="M14 4v4h4M9 13h6M9 17h6" />
+                                </svg><span data-sidebar-label>Tugas saya</span>
+                            </a>
+                        @endif
+                    </nav>
+                    <div
+                        class="mt-auto flex items-center gap-3 border-t border-slate-100 px-3 pt-5 text-xs leading-5 text-slate-500">
+                        <img src="{{ asset('apple-touch-icon.png') }}?v=2" width="32" height="32" alt=""
+                            class="h-8 w-8 shrink-0">
+                        <span data-sidebar-label class="font-medium">ELT Academic Hub<br><span class="text-slate-400">Ruang kerja Tri Dharma</span></span>
+                    </div>
+                </div>
+            </aside>
+        @endif
+

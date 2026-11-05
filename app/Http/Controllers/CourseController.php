@@ -36,7 +36,12 @@ class CourseController extends Controller
         }
 
         $courses = $coursesQuery->with(['studyProgram.faculty', 'academicPeriod', 'lecturer'])
-            ->withCount(['materials', 'sessions', 'students', 'assignments'])
+            ->withCount([
+                'materials',
+                'sessions',
+                'students',
+                'assignments' => fn ($aq) => $user->isStaff() ? $aq : $aq->where('status', 'published'),
+            ])
             ->orderBy('code')
             ->get();
 
@@ -77,8 +82,10 @@ class CourseController extends Controller
     {
         $user = $request->user();
 
-        // Otorisasi: dosen pengampu, admin/superadmin, atau mahasiswa terdaftar
-        if (! $user->isStaff()) {
+        // Dosen pengampu dan administrator dapat melihat rekap kelas; mahasiswa hanya dapat melihat kelasnya sendiri.
+        if ($user->isStaff()) {
+            abort_unless($user->id === $course->lecturer_id || in_array($user->role, ['admin', 'superadmin'], true), 403, 'Anda tidak memiliki akses ke kelas ini.');
+        } else {
             abort_unless($course->students()->where('student_id', $user->id)->exists(), 403, 'Anda tidak terdaftar pada mata kuliah ini.');
         }
 
@@ -93,13 +100,18 @@ class CourseController extends Controller
                     : $aq->where('user_id', $user->id)->with('student'),
             ]),
             'students.student.studyProgram',
-            'assignments' => fn ($q) => $q->withCount(['submissions', 'students'])->with([
-                'submissions' => fn ($sq) => $user->isStaff()
-                    ? $sq->with('student')
-                    : $sq->where('student_id', $user->id)->with('student'),
-                'rubric',
+            'assignments' => fn ($q) => $q->when(! $user->isStaff(), fn ($sq) => $sq->where('status', 'published'))->withCount([
+                'submissions',
+                'submissions as submitted_submissions_count' => fn ($sq) => $sq->whereIn('status', ['submitted', 'graded']),
+                'submissions as graded_submissions_count' => fn ($sq) => $sq->where('status', 'graded'),
+                'submissions as draft_submissions_count' => fn ($sq) => $sq->where('status', 'draft'),
+                'students',
                 'questions',
-            ]),
+            ])->withAvg([
+                'submissions as average_score' => fn ($sq) => $sq->whereNotNull('score'),
+            ], 'score')->when(! $user->isStaff(), fn ($sq) => $sq->with([
+                'submissions' => fn ($subQ) => $subQ->where('student_id', $user->id),
+            ])),
         ]);
 
         $enrolledStudentIds = $course->students->pluck('student_id')->all();

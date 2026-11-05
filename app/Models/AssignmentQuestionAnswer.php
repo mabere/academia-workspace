@@ -20,6 +20,7 @@ class AssignmentQuestionAnswer extends Model
     protected $fillable = [
         'submission_id',
         'question_id',
+        'attempt_number',
         'student_answer',
         'is_correct',
         'score_awarded',
@@ -30,6 +31,7 @@ class AssignmentQuestionAnswer extends Model
         return [
             'is_correct' => 'boolean',
             'score_awarded' => 'float',
+            'attempt_number' => 'integer',
         ];
     }
 

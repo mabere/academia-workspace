@@ -425,3 +425,5 @@ body.sidebar-collapsed .sidebar-link {
         transition: none;
     }
 }
+
+[x-cloak] { display: none !important; }

@@ -7,6 +7,7 @@
     x-data="{
         remainingSeconds: {{ $remainingSeconds ?? 0 }},
         timeLimit: {{ $assignment->time_limit_minutes ? 'true' : 'false' }},
+        timerActive: {{ $submission?->started_at && !in_array($submission->status, ['submitted', 'graded']) ? 'true' : 'false' }},
         timerString: '',
         maxPlays: {{ (int) ($assignment->config_json['audio_max_plays'] ?? 2) }},
         playsLeft: {{ (int) ($playsLeft ?? ($assignment->config_json['audio_max_plays'] ?? 2)) }},
@@ -21,7 +22,10 @@
                     audio.controls = false;
                 }
             }
-            if (this.timeLimit && this.remainingSeconds > 0) {
+            if (this.timeLimit && this.timerActive && this.remainingSeconds <= 0) {
+                this.clearDraft();
+                document.getElementById('examForm')?.submit();
+            } else if (this.timeLimit && this.timerActive) {
                 this.updateTimerString();
                 const interval = setInterval(() => {
                     this.remainingSeconds--;
@@ -144,7 +148,7 @@
             </div>
 
             {{-- Widget Countdown Timer --}}
-            @if($assignment->time_limit_minutes && (!$submission || !in_array($submission->status, ['submitted', 'graded'])))
+            @if($assignment->time_limit_minutes && $submission?->started_at && !in_array($submission->status, ['submitted', 'graded']))
                 <div class="rounded-2xl bg-slate-900 px-5 py-3 text-center text-white shadow-md border border-slate-800">
                     <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Sisa Waktu</span>
                     <span class="font-mono text-2xl font-extrabold text-amber-400" x-text="timerString">--:--</span>
@@ -283,18 +287,34 @@
             </div>
 
             <div class="mt-6 flex justify-end">
-                <a href="{{ route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']) }}"
-                    class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 transition">
-                    &larr; Kembali ke Kelas
-                </a>
+                <div class="flex flex-wrap gap-2">
+                    @if($assignment->allow_revisions && (!$assignment->due_at || $assignment->due_at->isFuture()))
+                        <form method="post" action="{{ route('assignments.exam.start', $assignment) }}">
+                            @csrf
+                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition">Mulai Revisi Jawaban</button>
+                        </form>
+                    @endif
+                    <a href="{{ route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']) }}"
+                        class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 transition">
+                        &larr; Kembali ke Kelas
+                    </a>
+                </div>
             </div>
         </div>
 
-    {{-- KONDISI 2: FORM PENGERJAAN SOAL AKTIF (MAHASISWA ATAU MODE PRATINJAU) --}}
+    {{-- KONDISI 2: MULAI UJIAN SECARA EKSPLISIT --}}
+    @if((!$submission || !$submission->started_at) && !$isPreview)
+        <form method="post" action="{{ route('assignments.exam.start', $assignment) }}" class="rounded-3xl border border-amber-200 bg-white p-7 text-center shadow-sm">
+            @csrf
+            <h2 class="text-lg font-bold text-slate-900">Siap memulai pengerjaan?</h2>
+            <p class="mt-2 text-sm text-slate-600">Waktu ujian mulai berjalan setelah Anda memilih Mulai. Anda dapat menyimpan jawaban sebagai draf selama waktu pengerjaan.</p>
+            <button type="submit" class="mt-5 rounded-xl bg-teal-800 px-6 py-3 text-sm font-bold text-white hover:bg-teal-700">Mulai Ujian</button>
+        </form>
+    {{-- KONDISI 3: FORM PENGERJAAN SOAL AKTIF (MAHASISWA ATAU MODE PRATINJAU) --}}
     @else
         <form id="examForm" method="post" action="{{ route('assignments.exam.submit', $assignment) }}" class="space-y-6"
             @input="saveDraft()" @change="saveDraft()"
-            @submit="if (!confirm('Apakah Anda yakin ingin menyelesaikan dan mengumpulkan ujian ini? Jawaban tidak dapat diubah kembali setelah dikirim.')) { $event.preventDefault(); return false; } submitting = true; clearDraft();">
+            @submit="if ($event.submitter?.name === 'save_draft') { submitting = true; return; } if (!confirm('Apakah Anda yakin ingin menyelesaikan dan mengumpulkan ujian ini?')) { $event.preventDefault(); return false; } submitting = true; clearDraft();">
             @csrf
 
             {{-- Bagian 1: Butir Soal Objektif / Pilihan Ganda --}}
@@ -329,7 +349,8 @@
                                     <div class="space-y-2.5 pt-1">
                                         @foreach($q->options_json as $opt)
                                             <label class="flex items-center gap-3.5 rounded-xl border border-slate-200 bg-white p-3.5 text-sm text-slate-800 hover:bg-teal-50/40 hover:border-teal-300 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50/70 has-[:checked]:ring-1 has-[:checked]:ring-teal-600 transition cursor-pointer">
-                                                <input type="radio" name="answers[{{ $q->id }}]" value="{{ $opt['key'] }}"
+                                                @php($savedAnswer = $submission?->answers?->firstWhere('question_id', $q->id))
+                                                <input type="radio" name="answers[{{ $q->id }}]" value="{{ $opt['key'] }}" @checked($savedAnswer?->student_answer === $opt['key'])
                                                     class="h-4 w-4 text-teal-700 focus:ring-teal-700">
                                                 <span class="leading-relaxed">
                                                     <strong class="font-bold text-slate-900">{{ $opt['key'] }}.</strong> {{ $opt['text'] }}
@@ -339,7 +360,8 @@
                                     </div>
                                 @elseif($q->isShortAnswer())
                                     <div class="pt-1">
-                                        <input type="text" name="answers[{{ $q->id }}]" placeholder="Ketik jawaban singkat di sini..."
+                                        @php($savedAnswer = $submission?->answers?->firstWhere('question_id', $q->id))
+                                        <input type="text" name="answers[{{ $q->id }}]" value="{{ old('answers.'.$q->id, $savedAnswer?->student_answer) }}" placeholder="Ketik jawaban singkat di sini..."
                                             class="w-full rounded-xl border-slate-300 text-sm py-2.5 px-3.5 focus:border-teal-700 focus:ring-teal-700">
                                     </div>
                                 @endif
@@ -365,7 +387,7 @@
                         <label class="block text-sm font-semibold text-slate-700">Teks Jawaban Analitis Mahasiswa *</label>
                         <textarea name="essay_answer" rows="10" required
                             placeholder="Ketik analisis argumentatif Anda di sini (minimal 100 kata)..."
-                            class="mt-1.5 w-full rounded-2xl border-slate-300 p-4 text-base font-serif leading-relaxed text-slate-800 focus:border-indigo-700 focus:ring-indigo-700 shadow-xs"></textarea>
+                            class="mt-1.5 w-full rounded-2xl border-slate-300 p-4 text-base font-serif leading-relaxed text-slate-800 focus:border-indigo-700 focus:ring-indigo-700 shadow-xs">{{ old('essay_answer', $submission?->draft_body_text ?? '') }}</textarea>
                     </div>
                 </div>
             @endif
@@ -376,10 +398,16 @@
                     <p class="text-xs sm:text-sm text-slate-500">
                         Pastikan seluruh butir soal telah dijawab sebelum mengumpulkan. Draf jawaban tersimpan otomatis di peramban.
                     </p>
+                    <div class="flex flex-wrap gap-2">
+                    <button type="submit" formaction="{{ route('assignments.exam.draft', $assignment) }}" formnovalidate name="save_draft" value="1" :disabled="submitting"
+                        class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 shadow transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        Simpan Draf
+                    </button>
                     <button type="submit" :disabled="submitting"
                         class="rounded-xl bg-teal-800 px-6 py-3 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 shadow transition disabled:opacity-60 disabled:cursor-not-allowed">
                         <span x-text="submitting ? 'Mengirim Jawaban...' : 'Kirim Jawaban Ujian →'">Kirim Jawaban Ujian &rarr;</span>
                     </button>
+                    </div>
                 </div>
             @else
                 <div class="rounded-2xl bg-amber-50 p-4 border border-amber-200 text-xs sm:text-sm text-amber-800 text-center">
@@ -387,6 +415,7 @@
                 </div>
             @endif
         </form>
+    @endif
     @endif
 </div>
 @endsection

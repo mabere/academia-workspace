@@ -37,6 +37,7 @@ class WritingAssignment extends Model
         'feedback_language',
         'feedback_level',
         'status',
+        'allow_revisions',
         'due_at',
     ];
 
@@ -48,6 +49,7 @@ class WritingAssignment extends Model
             'mcq_weight_percentage' => 'integer',
             'essay_weight_percentage' => 'integer',
             'config_json' => 'array',
+            'allow_revisions' => 'boolean',
         ];
     }
 
@@ -85,6 +87,11 @@ class WritingAssignment extends Model
             'milestone_artifact' => 'Proposal & Proyek Bertahap',
             default => 'Esai Akademik (WriteWise)',
         };
+    }
+
+    public function assignmentTypeLabel(): string
+    {
+        return $this->typeLabel();
     }
 
     public function typeBadgeColor(): string

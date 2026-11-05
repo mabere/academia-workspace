@@ -98,6 +98,9 @@ class CourseStudentController extends Controller
                     $enrolledCount++;
                 }
             }
+
+            $enrolledStudentIds = $course->students()->pluck('student_id')->all();
+            $course->assignments()->each(fn ($assignment) => $assignment->students()->syncWithoutDetaching($enrolledStudentIds));
         });
 
         if ($enrolledCount === 0) {
@@ -143,7 +146,10 @@ class CourseStudentController extends Controller
         abort_unless($courseStudent->course_id === $course->id, 404);
 
         $studentName = $courseStudent->student->name ?? 'Mahasiswa';
-        $courseStudent->delete();
+        DB::transaction(function () use ($course, $courseStudent): void {
+            $course->assignments()->each(fn ($assignment) => $assignment->students()->detach($courseStudent->student_id));
+            $courseStudent->delete();
+        });
 
         return redirect()
             ->route('courses.show', ['course' => $course, 'tab' => 'students'])

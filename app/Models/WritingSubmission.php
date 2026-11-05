@@ -27,6 +27,13 @@ class WritingSubmission extends Model
         'artifact_url',
         'current_milestone_id',
         'notes',
+        'draft_body_text',
+        'draft_artifact_url',
+        'draft_milestone_id',
+        'draft_notes',
+        'draft_section_answers',
+        'draft_saved_at',
+        'current_attempt',
         'started_at',
         'submitted_at',
         'graded_by',
@@ -40,7 +47,10 @@ class WritingSubmission extends Model
             'mcq_score' => 'float',
             'essay_score' => 'float',
             'current_milestone_id' => 'integer',
+            'current_attempt' => 'integer',
             'started_at' => 'datetime',
+            'draft_saved_at' => 'datetime',
+            'draft_section_answers' => 'array',
             'submitted_at' => 'datetime',
             'graded_at' => 'datetime',
         ];
@@ -66,6 +76,12 @@ class WritingSubmission extends Model
     public function answers(): HasMany
     {
         return $this->hasMany(AssignmentQuestionAnswer::class, 'submission_id');
+    }
+
+    /** @return HasMany<WritingSubmissionAttempt, $this> */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(WritingSubmissionAttempt::class, 'submission_id')->orderBy('attempt_number');
     }
 
     /**

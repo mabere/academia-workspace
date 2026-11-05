@@ -174,6 +174,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/assignments/{assignment}', [WritingAssignmentController::class, 'destroy'])->name('assignments.destroy');
     Route::post('/assignments/extract-document', [WritingAssignmentController::class, 'extractDocument'])->middleware('throttle:10,1')->name('assignments.extract-document');
     Route::post('/assignments/{assignment}/revisions', [WritingAssignmentController::class, 'submit'])->name('assignments.revisions.store');
+    Route::post('/assignments/{assignment}/draft', [WritingAssignmentController::class, 'saveDraft'])->name('assignments.draft.store');
     Route::post('/revisions/{revision}/feedback/generate', [WritingAssignmentController::class, 'generateFeedback'])->middleware('throttle:3,1')->name('feedback.generate');
     Route::post('/revisions/{revision}/feedback', [WritingAssignmentController::class, 'createFeedback'])->name('feedback.store');
     Route::patch('/feedback/{report}', [WritingAssignmentController::class, 'editFeedback'])->name('feedback.update');
@@ -186,5 +187,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/assignments/{assignment}/audio-stream', [AssignmentExamController::class, 'streamAudio'])->name('assignments.audio-stream');
     Route::post('/assignments/{assignment}/audio-play', [AssignmentExamController::class, 'recordAudioPlay'])->middleware('throttle:30,1')->name('assignments.audio-play');
     Route::get('/assignments/{assignment}/exam', [AssignmentExamController::class, 'take'])->name('assignments.exam.take');
+    Route::post('/assignments/{assignment}/exam/start', [AssignmentExamController::class, 'startExam'])->name('assignments.exam.start');
+    Route::post('/assignments/{assignment}/exam/draft', [AssignmentExamController::class, 'saveExamDraft'])->name('assignments.exam.draft');
     Route::post('/assignments/{assignment}/exam', [AssignmentExamController::class, 'submitExam'])->middleware('throttle:10,1')->name('assignments.exam.submit');
 });
