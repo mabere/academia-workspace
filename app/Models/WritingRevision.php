@@ -48,6 +48,21 @@ class WritingRevision extends Model
         return 'Revisi ' . ($this->revision_number - 1);
     }
 
+    public function renderedBodyHtml(): string
+    {
+        $raw = (string) ($this->body_text ?? '');
+        if (trim($raw) === '') {
+            return '';
+        }
+
+        $html = \Illuminate\Support\Str::markdown($raw, [
+            'html_input' => 'escape',
+            'allow_unsafe_links' => false,
+        ]);
+
+        return str_replace(['&lt;br&gt;', '&lt;br/&gt;', '&lt;br /&gt;'], '<br>', $html);
+    }
+
     public function milestoneTitle(): ?string
     {
         if (! $this->milestone_id || ! $this->submission?->assignment) {

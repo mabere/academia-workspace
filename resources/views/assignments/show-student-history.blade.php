@@ -54,7 +54,7 @@
                                         @endforeach
                                     </div>
                                 @else
-                                    <p class="mt-2 whitespace-pre-line font-serif text-sm sm:text-base leading-relaxed text-slate-700">{{ $revision->body_text }}</p>
+                                    <div class="mt-2 font-serif text-sm sm:text-base leading-relaxed text-slate-700 academic-rendered-content">{!! $revision->renderedBodyHtml() !!}</div>
                                 @endif
                             </details>
 
@@ -67,11 +67,11 @@
                                     <div class="mt-3 grid gap-3 md:grid-cols-2">
                                         <div class="rounded-xl bg-slate-50 p-3.5">
                                             <p class="mb-2 text-xs font-semibold uppercase text-slate-500">Sebelumnya · {{ $previousRevision->revision_number === 1 ? 'Naskah Awal' : 'Revisi ' . ($previousRevision->revision_number - 1) }}</p>
-                                            <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $previousRevision->body_text }}</p>
+                                            <div class="font-serif text-sm leading-relaxed academic-rendered-content">{!! $previousRevision->renderedBodyHtml() !!}</div>
                                         </div>
                                         <div class="rounded-xl bg-teal-50 p-3.5">
                                             <p class="mb-2 text-xs font-semibold uppercase text-teal-800">Terbaru · {{ $revision->revision_number === 1 ? 'Naskah Awal' : 'Revisi ' . ($revision->revision_number - 1) }}</p>
-                                            <p class="whitespace-pre-line font-serif text-sm leading-relaxed">{{ $revision->body_text }}</p>
+                                            <div class="font-serif text-sm leading-relaxed academic-rendered-content">{!! $revision->renderedBodyHtml() !!}</div>
                                         </div>
                                     </div>
                                 </details>

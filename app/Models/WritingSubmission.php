@@ -132,6 +132,21 @@ class WritingSubmission extends Model
         };
     }
 
+    public function renderedDraftBodyHtml(): string
+    {
+        $raw = (string) ($this->draft_body_text ?? '');
+        if (trim($raw) === '') {
+            return '';
+        }
+
+        $html = \Illuminate\Support\Str::markdown($raw, [
+            'html_input' => 'escape',
+            'allow_unsafe_links' => false,
+        ]);
+
+        return str_replace(['&lt;br&gt;', '&lt;br/&gt;', '&lt;br /&gt;'], '<br>', $html);
+    }
+
     /** @return BelongsTo<WritingAssignment, $this> */
     public function assignment(): BelongsTo
     {

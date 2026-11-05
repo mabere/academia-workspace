@@ -134,8 +134,8 @@
                         {{-- Lembar Naskah Tulisan / Esai Mahasiswa --}}
                         <div x-show="currentRevision()?.body_text && (!currentRevision()?.section_answers || Object.keys(currentRevision().section_answers).length === 0)">
                             <span class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-2">Isi Naskah Jawaban</span>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50/40 p-5 sm:p-6 text-sm sm:text-base font-serif text-slate-900 leading-relaxed whitespace-pre-wrap select-text max-h-[40vh] overflow-y-auto selection:bg-teal-100"
-                                x-text="currentRevision()?.body_text"></div>
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 text-sm sm:text-base font-serif text-slate-900 leading-relaxed select-text max-h-[40vh] overflow-y-auto selection:bg-teal-100 academic-rendered-content"
+                                x-html="currentRevision()?.body_html || currentRevision()?.body_text"></div>
                         </div>
 
                         {{-- Daftar Jawaban Pertanyaan (Jika Format Ujian / Asesmen Stimulus / Hibrida) --}}
