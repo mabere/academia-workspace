@@ -9,42 +9,72 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('writing_assignments', function (Blueprint $table) {
-            $table->boolean('allow_revisions')->default(true);
-        });
+        if (! Schema::hasColumn('writing_assignments', 'allow_revisions')) {
+            Schema::table('writing_assignments', function (Blueprint $table) {
+                $table->boolean('allow_revisions')->default(true);
+            });
+        }
 
         Schema::table('writing_submissions', function (Blueprint $table) {
             $table->string('status', 24)->default('draft')->change();
-            $table->unsignedSmallInteger('current_attempt')->default(1);
-            $table->longText('draft_body_text')->nullable();
-            $table->string('draft_artifact_url', 500)->nullable();
-            $table->unsignedSmallInteger('draft_milestone_id')->nullable();
-            $table->text('draft_notes')->nullable();
-            $table->timestamp('draft_saved_at')->nullable();
+            if (! Schema::hasColumn('writing_submissions', 'current_attempt')) {
+                $table->unsignedSmallInteger('current_attempt')->default(1);
+            }
+            if (! Schema::hasColumn('writing_submissions', 'draft_body_text')) {
+                $table->longText('draft_body_text')->nullable();
+            }
+            if (! Schema::hasColumn('writing_submissions', 'draft_artifact_url')) {
+                $table->string('draft_artifact_url', 500)->nullable();
+            }
+            if (! Schema::hasColumn('writing_submissions', 'draft_milestone_id')) {
+                $table->unsignedSmallInteger('draft_milestone_id')->nullable();
+            }
+            if (! Schema::hasColumn('writing_submissions', 'draft_notes')) {
+                $table->text('draft_notes')->nullable();
+            }
+            if (! Schema::hasColumn('writing_submissions', 'draft_saved_at')) {
+                $table->timestamp('draft_saved_at')->nullable();
+            }
         });
 
-        Schema::table('assignment_question_answers', function (Blueprint $table) {
-            $table->unsignedSmallInteger('attempt_number')->default(1);
-            $table->dropUnique(['submission_id', 'question_id']);
-            $table->unique(['submission_id', 'question_id', 'attempt_number']);
-        });
+        if (! Schema::hasColumn('assignment_question_answers', 'attempt_number')) {
+            Schema::table('assignment_question_answers', function (Blueprint $table) {
+                $table->unsignedSmallInteger('attempt_number')->default(1);
+            });
+        }
 
-        Schema::create('writing_submission_attempts', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('submission_id')->constrained('writing_submissions')->cascadeOnDelete();
-            $table->unsignedSmallInteger('attempt_number');
-            $table->string('status', 24)->default('draft');
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('submitted_at')->nullable();
-            $table->decimal('mcq_score', 5, 2)->nullable();
-            $table->decimal('essay_score', 5, 2)->nullable();
-            $table->decimal('score', 5, 2)->nullable();
-            $table->foreignId('graded_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('graded_at')->nullable();
-            $table->json('answers_snapshot')->nullable();
-            $table->timestamps();
-            $table->unique(['submission_id', 'attempt_number']);
-        });
+        // Buat indeks unik baru terlebih dahulu agar foreign key submission_id di MySQL tetap memiliki indeks penopang
+        if (! Schema::hasIndex('assignment_question_answers', ['submission_id', 'question_id', 'attempt_number'], 'unique')) {
+            Schema::table('assignment_question_answers', function (Blueprint $table) {
+                $table->unique(['submission_id', 'question_id', 'attempt_number'], 'aqa_sub_question_attempt_unique');
+            });
+        }
+
+        // Setelah indeks baru terbentuk, barulah hapus indeks unik lama
+        if (Schema::hasIndex('assignment_question_answers', 'assignment_question_answers_submission_id_question_id_unique')) {
+            Schema::table('assignment_question_answers', function (Blueprint $table) {
+                $table->dropUnique('assignment_question_answers_submission_id_question_id_unique');
+            });
+        }
+
+        if (! Schema::hasTable('writing_submission_attempts')) {
+            Schema::create('writing_submission_attempts', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('submission_id')->constrained('writing_submissions')->cascadeOnDelete();
+                $table->unsignedSmallInteger('attempt_number');
+                $table->string('status', 24)->default('draft');
+                $table->timestamp('started_at')->nullable();
+                $table->timestamp('submitted_at')->nullable();
+                $table->decimal('mcq_score', 5, 2)->nullable();
+                $table->decimal('essay_score', 5, 2)->nullable();
+                $table->decimal('score', 5, 2)->nullable();
+                $table->foreignId('graded_by')->nullable()->constrained('users')->nullOnDelete();
+                $table->timestamp('graded_at')->nullable();
+                $table->json('answers_snapshot')->nullable();
+                $table->timestamps();
+                $table->unique(['submission_id', 'attempt_number']);
+            });
+        }
 
         DB::table('writing_submissions')->orderBy('id')->chunkById(200, function ($submissions): void {
             foreach ($submissions as $submission) {
@@ -62,7 +92,7 @@ return new class extends Migration
                     ->map(fn ($answer) => (array) $answer)
                     ->all();
 
-                DB::table('writing_submission_attempts')->insert([
+                DB::table('writing_submission_attempts')->insertOrIgnore([
                     'submission_id' => $submission->id,
                     'attempt_number' => 1,
                     'status' => $submission->status === 'graded' || $submission->graded_at
@@ -108,9 +138,18 @@ return new class extends Migration
         Schema::dropIfExists('writing_submission_attempts');
 
         Schema::table('assignment_question_answers', function (Blueprint $table) {
-            $table->dropUnique(['submission_id', 'question_id', 'attempt_number']);
-            $table->dropColumn('attempt_number');
             $table->unique(['submission_id', 'question_id']);
+        });
+
+        Schema::table('assignment_question_answers', function (Blueprint $table) {
+            if (Schema::hasIndex('assignment_question_answers', 'aqa_sub_question_attempt_unique')) {
+                $table->dropUnique('aqa_sub_question_attempt_unique');
+            } elseif (Schema::hasIndex('assignment_question_answers', ['submission_id', 'question_id', 'attempt_number'], 'unique')) {
+                $table->dropUnique(['submission_id', 'question_id', 'attempt_number']);
+            }
+            if (Schema::hasColumn('assignment_question_answers', 'attempt_number')) {
+                $table->dropColumn('attempt_number');
+            }
         });
 
         Schema::table('writing_assignments', function (Blueprint $table) {

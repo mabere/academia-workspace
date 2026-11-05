@@ -8,13 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('writing_submissions', function (Blueprint $table) {
-            $table->json('draft_section_answers')->nullable();
-        });
+        if (! Schema::hasColumn('writing_submissions', 'draft_section_answers')) {
+            Schema::table('writing_submissions', function (Blueprint $table) {
+                $table->json('draft_section_answers')->nullable();
+            });
+        }
 
-        Schema::table('writing_revisions', function (Blueprint $table) {
-            $table->json('section_answers')->nullable();
-        });
+        if (! Schema::hasColumn('writing_revisions', 'section_answers')) {
+            Schema::table('writing_revisions', function (Blueprint $table) {
+                $table->json('section_answers')->nullable();
+            });
+        }
     }
 
     public function down(): void
