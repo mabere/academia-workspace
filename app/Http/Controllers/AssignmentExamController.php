@@ -297,6 +297,10 @@ class AssignmentExamController extends Controller
             ['status' => 'draft', 'started_at' => now(), 'current_attempt' => 1]
         );
 
+        if ($submission->status === 'graded' && $submission->hasMaxGrade()) {
+            abort(409, 'Anda telah meraih nilai maksimal (Grade A). Tugas ini sudah tuntas dan tidak memerlukan revisi.');
+        }
+
         if ($submission->submitted_at && ! $assignment->allow_revisions) {
             abort(409, 'Dosen tidak mengizinkan revisi jawaban untuk tugas ini.');
         }

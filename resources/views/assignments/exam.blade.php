@@ -288,10 +288,10 @@
 
             <div class="mt-6 flex justify-end">
                 <div class="flex flex-wrap gap-2">
-                    @if($assignment->allow_revisions && (!$assignment->due_at || $assignment->due_at->isFuture()))
+                    @if($assignment->allow_revisions && (!$assignment->due_at || $assignment->due_at->isFuture()) && !($submission?->status === 'graded' && $submission?->hasMaxGrade()))
                         <form method="post" action="{{ route('assignments.exam.start', $assignment) }}">
                             @csrf
-                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition">Mulai Revisi Jawaban</button>
+                            <button type="submit" class="rounded-xl bg-teal-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition">Ajukan Revisi</button>
                         </form>
                     @endif
                     <a href="{{ route('courses.show', ['course' => $assignment->course, 'tab' => 'assignments']) }}"

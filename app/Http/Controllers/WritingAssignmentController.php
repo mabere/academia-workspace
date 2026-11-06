@@ -161,9 +161,10 @@ class WritingAssignmentController extends Controller
         $assignment->setRelation('submissions', $submissions->get());
         $assignment->setRelation('currentRubric', $assignment->rubric->first());
 
+        $mySubmission = Auth::user()->role === 'student' ? $assignment->submissions->first() : null;
         $aiFeedbackAvailable = Auth::user()->isStaff() && $gateway->isAvailable();
 
-        return view('assignments.show', compact('assignment', 'aiFeedbackAvailable'));
+        return view('assignments.show', compact('assignment', 'aiFeedbackAvailable', 'mySubmission'));
     }
 
     public function submit(Request $request, WritingAssignment $assignment, DocumentTextExtractor $extractor): RedirectResponse
@@ -172,6 +173,7 @@ class WritingAssignmentController extends Controller
         abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
 
         $submission = WritingSubmission::where('assignment_id', $assignment->id)->where('student_id', Auth::id())->first();
+        abort_if($submission?->status === 'graded' && $submission?->hasMaxGrade(), 409, 'Anda telah meraih nilai maksimal (Grade A). Tugas ini sudah tuntas dan tidak memerlukan revisi.');
         abort_if($submission?->submitted_at && ! $assignment->allow_revisions, 409, 'Dosen tidak mengizinkan revisi tambahan untuk tugas ini.');
 
         $data = $request->validate([
@@ -278,11 +280,10 @@ class WritingAssignmentController extends Controller
     {
         Gate::authorize('submitRevision', $assignment);
         abort_unless($assignment->due_at === null || $assignment->due_at->isFuture(), 409, 'Tenggat tugas telah lewat.');
-        abort_if(
-            $assignment->submissions()->where('student_id', Auth::id())->whereNotNull('submitted_at')->exists() && ! $assignment->allow_revisions,
-            409,
-            'Dosen tidak mengizinkan revisi tambahan untuk tugas ini.'
-        );
+
+        $submission = WritingSubmission::where('assignment_id', $assignment->id)->where('student_id', Auth::id())->first();
+        abort_if($submission?->status === 'graded' && $submission?->hasMaxGrade(), 409, 'Anda telah meraih nilai maksimal (Grade A). Tugas ini sudah tuntas dan tidak memerlukan revisi.');
+        abort_if($submission?->submitted_at && ! $assignment->allow_revisions, 409, 'Dosen tidak mengizinkan revisi tambahan untuk tugas ini.');
 
         $data = $request->validate([
             'body_text' => ['nullable', 'string', 'max:50000'],

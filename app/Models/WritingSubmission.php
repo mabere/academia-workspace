@@ -113,23 +113,42 @@ class WritingSubmission extends Model
         return $this->belongsTo(User::class, 'graded_by');
     }
 
-    public function letterGrade(): string
+    public static function gradeToLetter(?float $score): string
     {
-        if ($this->score === null) {
+        if ($score === null) {
             return '-';
         }
 
         return match (true) {
-            $this->score >= 85.0 => 'A',
-            $this->score >= 80.0 => 'A-',
-            $this->score >= 75.0 => 'B+',
-            $this->score >= 70.0 => 'B',
-            $this->score >= 65.0 => 'B-',
-            $this->score >= 60.0 => 'C+',
-            $this->score >= 55.0 => 'C',
-            $this->score >= 40.0 => 'D',
+            $score >= 85.0 => 'A',
+            $score >= 80.0 => 'A-',
+            $score >= 75.0 => 'B+',
+            $score >= 70.0 => 'B',
+            $score >= 65.0 => 'B-',
+            $score >= 60.0 => 'C+',
+            $score >= 55.0 => 'C',
+            $score >= 40.0 => 'D',
             default => 'E',
         };
+    }
+
+    public function letterGrade(): string
+    {
+        return self::gradeToLetter($this->score !== null ? (float) $this->score : null);
+    }
+
+    public function hasMaxGrade(): bool
+    {
+        return $this->score !== null && ($this->score >= 85.0 || $this->letterGrade() === 'A');
+    }
+
+    public function latestRevision(): ?WritingRevision
+    {
+        if ($this->relationLoaded('revisions')) {
+            return $this->revisions->sortByDesc('revision_number')->first();
+        }
+
+        return $this->revisions()->reorder()->orderByDesc('revision_number')->first();
     }
 
     public function renderedDraftBodyHtml(): string

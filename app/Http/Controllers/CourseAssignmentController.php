@@ -531,7 +531,7 @@ class CourseAssignmentController extends Controller
             }
 
             // Jika ada revisi terbaru, simpan atau mutakhirkan laporan feedback dosen
-            $latestRevision = $submission->revisions()->latest('revision_number')->first();
+            $latestRevision = $submission->latestRevision();
             if ($latestRevision) {
                 $feedbackReport = $latestRevision->feedbackReports()->first();
                 $payload = [
