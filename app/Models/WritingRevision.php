@@ -48,9 +48,9 @@ class WritingRevision extends Model
         return 'Revisi ' . ($this->revision_number - 1);
     }
 
-    public function renderedBodyHtml(): string
+    public static function renderSafeMarkdown(?string $raw): string
     {
-        $raw = (string) ($this->body_text ?? '');
+        $raw = (string) ($raw ?? '');
         if (trim($raw) === '') {
             return '';
         }
@@ -61,6 +61,23 @@ class WritingRevision extends Model
         ]);
 
         return str_replace(['&lt;br&gt;', '&lt;br/&gt;', '&lt;br /&gt;'], '<br>', $html);
+    }
+
+    public function renderedBodyHtml(): string
+    {
+        return self::renderSafeMarkdown($this->body_text);
+    }
+
+    /** @return array<string, string> */
+    public function renderedSectionAnswersHtml(): array
+    {
+        $answers = is_array($this->section_answers) ? $this->section_answers : [];
+        $rendered = [];
+        foreach ($answers as $key => $val) {
+            $rendered[(string) $key] = self::renderSafeMarkdown((string) $val);
+        }
+
+        return $rendered;
     }
 
     public function milestoneTitle(): ?string

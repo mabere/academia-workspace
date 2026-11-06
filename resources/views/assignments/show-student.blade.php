@@ -131,9 +131,22 @@
         </div>
     @endif
 
+    @php
+        $configuredSections = $assignment->config_json['sections'] ?? [];
+        $savedDraftSections = old('section_responses', $mySubmission?->draft_section_answers ?? []);
+        $initialSectionResponses = [];
+        foreach ($configuredSections as $secItem) {
+            $sKey = $secItem['key'] ?? '';
+            if ($sKey !== '') {
+                $initialSectionResponses[$sKey] = (string) ($savedDraftSections[$sKey] ?? '');
+            }
+        }
+    @endphp
+
     <section class="mt-8 grid gap-6 lg:grid-cols-2">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm" x-data="{
             text: @js(old('body_text', $mySubmission?->draft_body_text ?? '')),
+            sectionResponses: @js((object) $initialSectionResponses),
             submitLabel: @js($mySubmission?->submitted_at ? 'Kirim Revisi →' : 'Kirim Tugas →'),
             extracting: false,
             submitting: false,
@@ -146,6 +159,10 @@
             get charCount() {
                 return this.text.length;
             },
+            sectionWordCount(key) {
+                const val = (this.sectionResponses && this.sectionResponses[key]) ? String(this.sectionResponses[key]).trim() : '';
+                return val ? val.split(/\s+/).length : 0;
+            },
             async handleFileChange(event) {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -156,6 +173,7 @@
 
                 const formData = new FormData();
                 formData.append('document_file', file);
+                formData.append('assignment_id', '{{ $assignment->id }}');
                 formData.append('_token', '{{ csrf_token() }}');
 
                 try {
@@ -166,9 +184,14 @@
                     });
                     const data = await response.json();
                     if (response.ok && data.success) {
-                        this.text = data.text;
+                        if (data.section_texts && typeof data.section_texts === 'object') {
+                            Object.entries(data.section_texts).forEach(([key, val]) => {
+                                this.sectionResponses[key] = val || '';
+                            });
+                        }
+                        this.text = data.text || '';
                         this.extractSuccess = true;
-                        this.extractMessage = `Ekstraksi berhasil: ${data.word_count} kata (${data.char_count} karakter) diekstrak dari ${data.filename}.`;
+                        this.extractMessage = data.message || `Ekstraksi berhasil: ${data.word_count} kata (${data.char_count} karakter) diekstrak dari ${data.filename}.`;
                     } else {
                         alert(data.message || 'Gagal mengekstrak teks dari berkas.');
                     }
@@ -176,6 +199,7 @@
                     alert('Terjadi kendala saat membaca dokumen. Anda juga dapat menyalin-tempel teks secara langsung.');
                 } finally {
                     this.extracting = false;
+                    event.target.value = '';
                 }
             }
         }">
@@ -271,17 +295,26 @@
                     @endif
 
                     @if(!empty($assignment->config_json['sections']))
-                        @php($draftSectionAnswers = old('section_responses', $mySubmission?->draft_section_answers ?? []))
+                        @php
+                            $draftSectionAnswers = old('section_responses', $mySubmission?->draft_section_answers ?? []);
+                        @endphp
                         @foreach($assignment->config_json['sections'] as $section)
-                            @php($sectionKey = $section['key'])
+                            @php
+                                $sectionKey = $section['key'];
+                            @endphp
                             <div>
-                                <label class="block text-xs sm:text-sm font-semibold text-slate-700">{{ $section['title'] }} @if($section['required'])<span class="text-rose-700">*</span>@endif @if($section['weight'] > 0)<span class="font-normal text-slate-500">· bobot acuan {{ $section['weight'] }}%</span>@endif</label>
+                                <div class="flex items-center justify-between gap-2">
+                                    <label class="block text-xs sm:text-sm font-semibold text-slate-700">{{ $section['title'] }} @if($section['required'])<span class="text-rose-700">*</span>@endif @if($section['weight'] > 0)<span class="font-normal text-slate-500">· bobot acuan {{ $section['weight'] }}%</span>@endif</label>
+                                    @if($section['response_type'] === 'long_text')
+                                        <span class="text-[11px] font-mono text-slate-500" x-text="sectionWordCount('{{ $sectionKey }}') + ' kata'"></span>
+                                    @endif
+                                </div>
                                 @if(!empty($section['cpmk_outcomes']))<p class="mt-1 text-[11px] text-indigo-800">CPMK: {{ implode(' · ', $section['cpmk_outcomes']) }}</p>@endif
                                 @if($section['prompt'])<p class="mt-1 text-xs text-slate-600 whitespace-pre-line">{{ $section['prompt'] }}</p>@endif
                                 @if($section['response_type'] === 'long_text')
-                                    <textarea name="section_responses[{{ $sectionKey }}]" @required($section['required']) maxlength="50000" rows="6" class="mt-1.5 w-full rounded-xl border-slate-300 p-3 text-sm leading-relaxed focus:border-teal-700 focus:ring-teal-700">{{ $draftSectionAnswers[$sectionKey] ?? '' }}</textarea>
+                                    <textarea name="section_responses[{{ $sectionKey }}]" x-model="sectionResponses['{{ $sectionKey }}']" @required($section['required']) maxlength="50000" rows="7" class="mt-1.5 w-full rounded-xl border-slate-300 p-3 font-serif text-sm sm:text-base leading-relaxed text-slate-800 focus:border-teal-700 focus:ring-teal-700">{{ $draftSectionAnswers[$sectionKey] ?? '' }}</textarea>
                                 @else
-                                    <input name="section_responses[{{ $sectionKey }}]" @required($section['required']) type="{{ $section['response_type'] === 'numeric' ? 'number' : 'url' }}" value="{{ $draftSectionAnswers[$sectionKey] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-300 p-3 text-sm focus:border-teal-700 focus:ring-teal-700" placeholder="{{ $section['response_type'] === 'audio_video' ? 'Tautan audio/video' : ($section['response_type'] === 'numeric' ? 'Masukkan nilai angka' : 'https://...') }}">
+                                    <input name="section_responses[{{ $sectionKey }}]" x-model="sectionResponses['{{ $sectionKey }}']" @required($section['required']) type="{{ $section['response_type'] === 'numeric' ? 'number' : 'url' }}" value="{{ $draftSectionAnswers[$sectionKey] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-300 p-3 text-sm focus:border-teal-700 focus:ring-teal-700" placeholder="{{ $section['response_type'] === 'audio_video' ? 'Tautan audio/video' : ($section['response_type'] === 'numeric' ? 'Masukkan nilai angka' : 'https://...') }}">
                                 @endif
                                 @error('section_responses.'.$sectionKey)<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                             </div>

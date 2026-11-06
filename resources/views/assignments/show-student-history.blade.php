@@ -50,7 +50,10 @@
                                             @php
                                                 $answerSection = collect($assignment->config_json['sections'] ?? [])->firstWhere('key', $answerKey);
                                             @endphp
-                                            <div class="rounded-xl bg-slate-50 p-3"><p class="text-xs font-bold text-slate-700">{{ $answerSection['title'] ?? 'Bagian tugas' }}</p><p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $answer }}</p></div>
+                                            <div class="rounded-xl bg-slate-50 p-3">
+                                                <p class="text-xs font-bold text-slate-700">{{ $answerSection['title'] ?? 'Bagian tugas' }}</p>
+                                                <div class="mt-1 font-serif text-sm text-slate-700 leading-relaxed academic-rendered-content">{!! \App\Models\WritingRevision::renderSafeMarkdown((string) $answer) !!}</div>
+                                            </div>
                                         @endforeach
                                     </div>
                                 @else

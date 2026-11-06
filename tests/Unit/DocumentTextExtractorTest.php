@@ -190,4 +190,108 @@ class DocumentTextExtractorTest extends TestCase
 
         $this->assertStringContainsString('Teks Darurat', $text);
     }
+
+    public function test_splits_docx_into_part_a_and_part_b_and_ignores_cover_preamble(): void
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+            <w:body>
+                <w:p><w:r><w:t>TUGAS BAHASA INGGRIS HUKUM</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Nama: Budi Santoso | NIM: 202601001</w:t></w:r></w:p>
+                <w:p>
+                    <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+                    <w:r><w:t>Part A: Analisis Kesalahan Gramatikal</w:t></w:r>
+                </w:p>
+                <w:p><w:r><w:t>Berikut adalah daftar kesalahan umum:</w:t></w:r></w:p>
+                <w:tbl>
+                    <w:tr>
+                        <w:tc><w:p><w:r><w:t>Salah</w:t></w:r></w:p></w:tc>
+                        <w:tc><w:p><w:r><w:t>Benar</w:t></w:r></w:p></w:tc>
+                    </w:tr>
+                    <w:tr>
+                        <w:tc><w:p><w:r><w:t>I am agree</w:t></w:r></w:p></w:tc>
+                        <w:tc><w:p><w:r><w:t>I agree</w:t></w:r></w:p></w:tc>
+                    </w:tr>
+                </w:tbl>
+                <w:p>
+                    <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+                    <w:r><w:t>Part B - Refleksi Pembelajaran</w:t></w:r>
+                </w:p>
+                <w:p><w:r><w:t>Mahasiswa perlu memahami perbedaan kata kerja dan kata sifat.</w:t></w:r></w:p>
+            </w:body>
+        </w:document>';
+
+        $file = $this->createDocx($xml);
+        $sectionsConfig = [
+            ['key' => 'part_a', 'title' => 'Part A: Analisis Kesalahan Gramatikal'],
+            ['key' => 'part_b', 'title' => 'Part B: Refleksi Pembelajaran'],
+        ];
+
+        $result = $this->extractor->extractSections($file, $sectionsConfig);
+
+        $this->assertTrue($result['ignored_preamble']);
+        $this->assertFalse($result['unmatched']);
+
+        // Cover should be ignored
+        $this->assertStringNotContainsString('Budi Santoso', $result['section_texts']['part_a']);
+        $this->assertStringNotContainsString('Budi Santoso', $result['section_texts']['part_b']);
+
+        // Part A should contain the intro paragraph and markdown table
+        $this->assertStringContainsString('Berikut adalah daftar kesalahan umum:', $result['section_texts']['part_a']);
+        $this->assertStringContainsString('| Salah | Benar |', $result['section_texts']['part_a']);
+        $this->assertStringContainsString('| I am agree | I agree |', $result['section_texts']['part_a']);
+
+        // Part B should contain the reflection text
+        $this->assertStringContainsString('Mahasiswa perlu memahami perbedaan kata kerja dan kata sifat.', $result['section_texts']['part_b']);
+    }
+
+    public function test_splits_docx_using_bagian_1_and_bagian_2_headers(): void
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+            <w:body>
+                <w:p><w:r><w:t>Cover Tugas</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Bagian 1</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Jawaban untuk bagian pertama.</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Bagian 2:</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Jawaban untuk bagian kedua.</w:t></w:r></w:p>
+            </w:body>
+        </w:document>';
+
+        $file = $this->createDocx($xml);
+        $sectionsConfig = [
+            ['key' => 'sec_1', 'title' => 'Bagian 1 - Kajian Teori'],
+            ['key' => 'sec_2', 'title' => 'Bagian 2 - Studi Kasus'],
+        ];
+
+        $result = $this->extractor->extractSections($file, $sectionsConfig);
+
+        $this->assertTrue($result['ignored_preamble']);
+        $this->assertFalse($result['unmatched']);
+        $this->assertSame('Jawaban untuk bagian pertama.', $result['section_texts']['sec_1']);
+        $this->assertSame('Jawaban untuk bagian kedua.', $result['section_texts']['sec_2']);
+    }
+
+    public function test_failsafe_places_all_text_in_first_section_when_no_markers_found(): void
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+            <w:body>
+                <w:p><w:r><w:t>Paragraf naskah lurus tanpa penanda bagian sama sekali.</w:t></w:r></w:p>
+            </w:body>
+        </w:document>';
+
+        $file = $this->createDocx($xml);
+        $sectionsConfig = [
+            ['key' => 'sec_1', 'title' => 'Part A'],
+            ['key' => 'sec_2', 'title' => 'Part B'],
+        ];
+
+        $result = $this->extractor->extractSections($file, $sectionsConfig);
+
+        $this->assertTrue($result['unmatched']);
+        $this->assertFalse($result['ignored_preamble']);
+        $this->assertSame('Paragraf naskah lurus tanpa penanda bagian sama sekali.', $result['section_texts']['sec_1']);
+        $this->assertSame('', $result['section_texts']['sec_2']);
+    }
 }

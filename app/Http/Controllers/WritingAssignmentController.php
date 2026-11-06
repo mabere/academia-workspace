@@ -184,11 +184,23 @@ class WritingAssignmentController extends Controller
             'section_responses.*' => ['nullable', 'string', 'max:50000'],
         ]);
 
-        $sectionAnswers = $this->validatedSectionAnswers($assignment, $data['section_responses'] ?? []);
+        $rawSectionResponses = $data['section_responses'] ?? [];
+        $sectionsConfig = $assignment->config_json['sections'] ?? [];
+
+        if ($request->hasFile('document_file') && ! empty($sectionsConfig) && empty(array_filter($rawSectionResponses, fn ($v) => trim((string) $v) !== ''))) {
+            try {
+                $split = $extractor->extractSections($request->file('document_file'), $sectionsConfig);
+                $rawSectionResponses = $split['section_texts'];
+            } catch (\Throwable $e) {
+                return back()->withErrors(['document_file' => 'Gagal mengekstrak teks berkas: '.$e->getMessage()])->withInput();
+            }
+        }
+
+        $sectionAnswers = $this->validatedSectionAnswers($assignment, $rawSectionResponses);
 
         $bodyText = ! empty($data['body_text']) ? trim($data['body_text']) : '';
 
-        if ($request->hasFile('document_file')) {
+        if ($request->hasFile('document_file') && empty($sectionsConfig)) {
             try {
                 $extracted = $extractor->extract($request->file('document_file'));
                 if ($extracted !== '') {
@@ -200,7 +212,7 @@ class WritingAssignmentController extends Controller
         }
 
         if (! empty($sectionAnswers)) {
-            $sectionTitles = collect($assignment->config_json['sections'] ?? [])->keyBy('key');
+            $sectionTitles = collect($sectionsConfig)->keyBy('key');
             $bodyText = collect($sectionAnswers)->map(function ($answer, $key) use ($sectionTitles) {
                 return ($sectionTitles[$key]['title'] ?? 'Bagian tugas')."\n".$answer;
             })->implode("\n\n");
@@ -282,10 +294,22 @@ class WritingAssignmentController extends Controller
             'section_responses.*' => ['nullable', 'string', 'max:50000'],
         ]);
 
-        $sectionAnswers = $this->validatedSectionAnswers($assignment, $data['section_responses'] ?? []);
+        $rawSectionResponses = $data['section_responses'] ?? [];
+        $sectionsConfig = $assignment->config_json['sections'] ?? [];
+
+        if ($request->hasFile('document_file') && ! empty($sectionsConfig) && empty(array_filter($rawSectionResponses, fn ($v) => trim((string) $v) !== ''))) {
+            try {
+                $split = $extractor->extractSections($request->file('document_file'), $sectionsConfig);
+                $rawSectionResponses = $split['section_texts'];
+            } catch (\Throwable $e) {
+                return back()->withErrors(['document_file' => 'Gagal mengekstrak teks berkas: '.$e->getMessage()])->withInput();
+            }
+        }
+
+        $sectionAnswers = $this->validatedSectionAnswers($assignment, $rawSectionResponses);
 
         $bodyText = trim((string) ($data['body_text'] ?? ''));
-        if ($request->hasFile('document_file')) {
+        if ($request->hasFile('document_file') && empty($sectionsConfig)) {
             try {
                 $bodyText = $extractor->extract($request->file('document_file')) ?: $bodyText;
             } catch (\Throwable $e) {
@@ -294,7 +318,7 @@ class WritingAssignmentController extends Controller
         }
 
         if (! empty($sectionAnswers)) {
-            $sectionTitles = collect($assignment->config_json['sections'] ?? [])->keyBy('key');
+            $sectionTitles = collect($sectionsConfig)->keyBy('key');
             $bodyText = collect($sectionAnswers)->map(fn ($answer, $key) => ($sectionTitles[$key]['title'] ?? 'Bagian tugas')."\n".$answer)->implode("\n\n");
         }
 
@@ -355,6 +379,7 @@ class WritingAssignmentController extends Controller
     {
         $request->validate([
             'document_file' => ['required', 'file', 'mimes:docx,pdf,txt', 'max:10240'],
+            'assignment_id' => ['nullable', 'integer', 'exists:writing_assignments,id'],
         ], [
             'document_file.required' => 'Pilih berkas Word (.docx), PDF (.pdf), atau Text (.txt) terlebih dahulu.',
             'document_file.mimes' => 'Format berkas harus berupa .docx, .pdf, atau .txt.',
@@ -363,13 +388,54 @@ class WritingAssignmentController extends Controller
 
         try {
             $file = $request->file('document_file');
+            $assignment = $request->filled('assignment_id')
+                ? WritingAssignment::find((int) $request->input('assignment_id'))
+                : null;
+
+            $sectionsConfig = $assignment?->config_json['sections'] ?? [];
+
+            if (! empty($sectionsConfig)) {
+                $split = $extractor->extractSections($file, $sectionsConfig);
+
+                $summaryParts = [];
+                foreach ($split['section_stats'] as $stat) {
+                    if ($stat['word_count'] > 0) {
+                        $summaryParts[] = "{$stat['title']} ({$stat['word_count']} kata)";
+                    }
+                }
+
+                if ($split['unmatched']) {
+                    $firstTitle = $sectionsConfig[0]['title'] ?? 'Bagian 1';
+                    $message = "Teks berhasil diekstrak ke {$firstTitle} ({$split['total_words']} kata). Penanda bagian lain tidak terdeteksi pada dokumen, silakan sesuaikan secara manual bila perlu.";
+                } else {
+                    $allocatedText = ! empty($summaryParts) ? implode(', ', $summaryParts) : "{$split['total_words']} kata";
+                    $preambleNote = $split['ignored_preamble'] ? ' Bagian cover/pengantar diabaikan.' : '';
+                    $message = "Ekstraksi berhasil: Teks dialokasikan ke {$allocatedText}.{$preambleNote}";
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'text' => $split['full_text'],
+                    'section_texts' => $split['section_texts'],
+                    'section_stats' => $split['section_stats'],
+                    'ignored_preamble' => $split['ignored_preamble'],
+                    'unmatched' => $split['unmatched'],
+                    'message' => $message,
+                    'char_count' => $split['total_chars'],
+                    'word_count' => $split['total_words'],
+                    'filename' => $file->getClientOriginalName(),
+                ]);
+            }
+
             $text = $extractor->extract($file);
+            $wordCount = $extractor->countWords($text);
 
             return response()->json([
                 'success' => true,
                 'text' => $text,
+                'message' => "Ekstraksi berhasil: {$wordCount} kata (" . mb_strlen($text) . " karakter) diekstrak dari {$file->getClientOriginalName()}.",
                 'char_count' => mb_strlen($text),
-                'word_count' => str_word_count($text),
+                'word_count' => $wordCount,
                 'filename' => $file->getClientOriginalName(),
             ]);
         } catch (\Throwable $e) {

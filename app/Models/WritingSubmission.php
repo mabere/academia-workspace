@@ -134,17 +134,19 @@ class WritingSubmission extends Model
 
     public function renderedDraftBodyHtml(): string
     {
-        $raw = (string) ($this->draft_body_text ?? '');
-        if (trim($raw) === '') {
-            return '';
+        return WritingRevision::renderSafeMarkdown($this->draft_body_text);
+    }
+
+    /** @return array<string, string> */
+    public function renderedDraftSectionAnswersHtml(): array
+    {
+        $answers = is_array($this->draft_section_answers) ? $this->draft_section_answers : [];
+        $rendered = [];
+        foreach ($answers as $key => $val) {
+            $rendered[(string) $key] = WritingRevision::renderSafeMarkdown((string) $val);
         }
 
-        $html = \Illuminate\Support\Str::markdown($raw, [
-            'html_input' => 'escape',
-            'allow_unsafe_links' => false,
-        ]);
-
-        return str_replace(['&lt;br&gt;', '&lt;br/&gt;', '&lt;br /&gt;'], '<br>', $html);
+        return $rendered;
     }
 
     /** @return BelongsTo<WritingAssignment, $this> */

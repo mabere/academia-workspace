@@ -124,8 +124,8 @@
                                             <p class="text-[11px] font-semibold text-indigo-800"
                                                 x-text="'CPMK: ' + ((activeSub?.sections || []).find(s => s.key === secKey)?.cpmk_outcomes || []).join(' · ')"></p>
                                         </template>
-                                        <div class="rounded-xl border border-slate-200 bg-white p-3.5 text-sm font-serif text-slate-900 whitespace-pre-wrap leading-relaxed"
-                                            x-text="secAnswer || '-'"></div>
+                                        <div class="rounded-xl border border-slate-200 bg-white p-3.5 text-sm font-serif text-slate-900 leading-relaxed academic-rendered-content"
+                                            x-html="currentRevision()?.section_answers_html?.[secKey] || secAnswer || '-'"></div>
                                     </div>
                                 </template>
                             </div>
