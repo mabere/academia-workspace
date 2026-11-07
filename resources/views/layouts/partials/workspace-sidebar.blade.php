@@ -5,8 +5,12 @@
                 aria-label="Menu samping">
                 <div class="sidebar-inner flex h-full flex-col overflow-y-auto px-3 py-5">
                     <div class="sidebar-heading mb-2 flex min-h-10 items-center justify-between gap-2 px-3">
-                        <p data-sidebar-label class="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            Workspace</p>
+                        <div class="flex items-center gap-2 min-w-0" data-sidebar-label>
+                            <img src="{{ asset('apple-touch-icon.png') }}" width="32" height="32" alt="Logo Academia Hub"
+                                class="h-6 w-6 object-contain shrink-0 md:hidden">
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Workspace</p>
+                        </div>
                         <button id="sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded="true"
                             aria-label="Ciutkan menu samping"
                             class="sidebar-toggle-desktop inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700">

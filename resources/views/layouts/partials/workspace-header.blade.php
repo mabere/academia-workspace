@@ -17,15 +17,15 @@
                         </button>
                     @endif
                     <a href="{{ route('home') }}" aria-label="ELT Academic Hub"
-                        class="{{ $showSidebar ? 'hidden md:inline-flex' : 'inline-flex' }} min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+                        class="inline-flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
                         <img src="{{ asset('apple-touch-icon.png') }}" width="48" height="48"
-                            alt="Logo Academia Hub" class="block h-9 w-9 shrink-0 object-contain sm:h-11 sm:w-11">
-                        <span class="hidden min-w-0 flex-col leading-tight sm:flex">
-                            <span class="truncate text-base font-extrabold tracking-tight sm:text-lg"><span
+                            alt="Logo Academia Hub" class="block h-8 w-8 shrink-0 object-contain sm:h-10 sm:w-10 md:h-11 md:w-11">
+                        <span class="flex min-w-0 flex-col leading-tight">
+                            <span class="truncate text-sm font-extrabold tracking-tight sm:text-base md:text-lg"><span
                                     class="text-[#05285c]">Academic</span> <span
                                     class="text-[#00a98f]">Workspace</span></span>
                             <span
-                                class="truncate text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">SISTEM
+                                class="hidden md:block truncate text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">SISTEM
                                 INFORMASI KINERJA DOSEN</span>
                         </span>
                     </a>
