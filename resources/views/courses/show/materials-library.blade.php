@@ -1,5 +1,5 @@
             {{-- Interactive Filter & Search Bar untuk Bahan Ajar --}}
-            <div class="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+            <div class="rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                 {{-- Filter Chips --}}
                 <div class="flex flex-wrap items-center gap-1.5">
                     <button type="button" @click="materialFilter = 'all'"
@@ -34,13 +34,24 @@
                     </button>
                 </div>
 
-                {{-- Realtime Search Input --}}
-                <div class="relative w-full sm:w-64">
-                    <input type="text" x-model="materialSearch" placeholder="Cari judul materi..."
-                        class="w-full rounded-xl border-slate-300 pl-9 pr-3 py-1.5 text-xs focus:border-teal-700 focus:ring-teal-700 bg-slate-50/50">
-                    <svg class="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                {{-- Action Cluster Kanan: Search & Unggah Button --}}
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {{-- Realtime Search Input --}}
+                    <div class="relative flex-1 sm:w-56">
+                        <input type="text" x-model="materialSearch" placeholder="Cari judul materi..."
+                            class="w-full rounded-xl border-slate-300 pl-9 pr-3 py-1.5 text-xs focus:border-teal-700 focus:ring-teal-700 bg-slate-50/50">
+                        <svg class="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+
+                    @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)))
+                        <button type="button" @click="mOpen = !mOpen"
+                            :class="mOpen ? 'bg-slate-800 text-white' : 'bg-teal-800 text-white hover:bg-teal-700'"
+                            class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-2xs transition">
+                            <span x-text="mOpen ? 'Tutup Form' : '+ Unggah Bahan Ajar'"></span>
+                        </button>
+                    @endif
                 </div>
             </div>
 
@@ -66,7 +77,8 @@
                                 $mTypeCategory = 'document';
                             }
                         @endphp
-                        <div x-show="(materialFilter === 'all' || materialFilter === '{{ $mTypeCategory }}') && ('{{ strtolower(addslashes($material->title)) }}'.includes(materialSearch.toLowerCase()) || '{{ strtolower(addslashes($material->description ?? '')) }}'.includes(materialSearch.toLowerCase()))"
+                        <div x-data="{ showMedia: false }"
+                            x-show="(materialFilter === 'all' || materialFilter === '{{ $mTypeCategory }}') && ('{{ strtolower(addslashes($material->title)) }}'.includes(materialSearch.toLowerCase()) || '{{ strtolower(addslashes($material->description ?? '')) }}'.includes(materialSearch.toLowerCase()))"
                             class="group rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:border-teal-300 hover:shadow-md transition">
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div class="flex items-start gap-4 max-w-3xl">
@@ -169,6 +181,22 @@
                                         </a>
                                     @endif
 
+                                    @if(($material->isAudio() && $material->file_path) || ($material->isVideo() && $material->file_path) || ($material->isLink() && $material->getYouTubeEmbedUrl()) || ($material->isText() && $material->content_text))
+                                        <button type="button" @click="showMedia = !showMedia"
+                                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition">
+                                            @if($material->isAudio())
+                                                <span x-text="showMedia ? 'Tutup Audio' : 'Putar Audio 🎧'"></span>
+                                            @elseif($material->isVideo() || ($material->isLink() && $material->getYouTubeEmbedUrl()))
+                                                <span x-text="showMedia ? 'Tutup Video' : 'Tonton Video 🎥'"></span>
+                                            @elseif($material->isText())
+                                                <span x-text="showMedia ? 'Tutup Teks' : 'Baca Teks 📜'"></span>
+                                            @endif
+                                            <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="showMedia ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                    @endif
+
                                     @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)))
                                         <button type="button"
                                             @click="openEditMaterialModal({
@@ -204,7 +232,7 @@
 
                             {{-- PLAYER AUDIO MULTIMEDIA --}}
                             @if($material->isAudio() && $material->file_path)
-                                <div class="mt-4 rounded-2xl border border-purple-200 bg-purple-50/50 p-4">
+                                <div x-show="showMedia" x-cloak class="mt-4 rounded-2xl border border-purple-200 bg-purple-50/50 p-4">
                                     <p class="text-xs font-bold text-purple-900 mb-2">Putar Audio Perkuliahan:</p>
                                     <audio controls class="w-full h-10">
                                         <source src="{{ route('courses.materials.stream', [$course, $material]) }}" type="{{ $material->mime_type ?: 'audio/mpeg' }}">
@@ -215,21 +243,21 @@
 
                             {{-- PLAYER VIDEO MULTIMEDIA --}}
                             @if($material->isVideo() && $material->file_path)
-                                <div class="mt-4 rounded-2xl border border-rose-200 bg-black/5 p-3">
+                                <div x-show="showMedia" x-cloak class="mt-4 rounded-2xl border border-rose-200 bg-black/5 p-3">
                                     <video controls class="w-full max-h-96 rounded-xl">
                                         <source src="{{ route('courses.materials.stream', [$course, $material]) }}" type="{{ $material->mime_type ?: 'video/mp4' }}">
                                         Browser Anda tidak mendukung pemutar video langsung.
                                     </video>
                                 </div>
                             @elseif($material->isLink() && $material->getYouTubeEmbedUrl())
-                                <div class="mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-2xl shadow-sm border border-slate-200">
+                                <div x-show="showMedia" x-cloak class="mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-2xl shadow-sm border border-slate-200">
                                     <iframe class="h-full w-full" src="{{ $material->getYouTubeEmbedUrl() }}" title="{{ $material->title }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                                 </div>
                             @endif
 
                             {{-- KONTEN TEKS ARTIKEL --}}
                             @if($material->isText() && $material->content_text)
-                                <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-serif">
+                                <div x-show="showMedia" x-cloak class="mt-4 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-serif">
                                     {{ $material->content_text }}
                                 </div>
                             @endif

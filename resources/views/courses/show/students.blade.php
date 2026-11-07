@@ -1,6 +1,6 @@
         {{-- TAB 4: PESERTA KELAS (MAHASISWA) --}}
         {{-- ======================================================== --}}
-        <div x-show="tab === 'students'" x-cloak class="space-y-6">
+        <div x-show="tab === 'students'" x-cloak class="space-y-4">
             @php
                 $canManageStudents = auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true));
                 $myEnrollment = $students->firstWhere('student_id', auth()->id());
@@ -37,22 +37,13 @@
 
             {{-- Form Penambahan / Assign Mahasiswa ke Kelas (Khusus Dosen / Staf) --}}
             @if($canManageStudents)
-                <div class="rounded-3xl border border-teal-200 bg-white p-5 shadow-xs" x-data="{ enrollMode: '{{ ($availableStudents ?? collect())->isNotEmpty() ? 'directory' : 'paste' }}', enrollOpen: false }">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h3 class="text-sm font-extrabold text-slate-900">Pendaftaran Mahasiswa Kelas</h3>
-
-                        <div class="flex items-center gap-2">
-                            <button type="button" @click="enrollOpen = !enrollOpen"
-                                class="inline-flex items-center gap-1.5 rounded-xl bg-teal-800 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs transition">
-                                <span x-text="enrollOpen ? 'Tutup Formulir' : '+ Tambah Mahasiswa'"></span>
-                                <svg class="h-4 w-4 transition-transform duration-200" :class="enrollOpen ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-                        </div>
+                <div x-show="enrollOpen" x-cloak class="rounded-3xl border border-teal-200 bg-white p-6 shadow-xs space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-extrabold text-slate-900">Pendaftaran Mahasiswa ke Kelas</h3>
+                        <button type="button" @click="enrollOpen = false" class="text-xs font-bold text-slate-400 hover:text-slate-700">&times; Tutup</button>
                     </div>
 
-                    <div x-show="enrollOpen" x-cloak class="mt-5 border-t border-slate-100 pt-5 space-y-4">
+                    <div class="space-y-4">
                         <div class="flex items-center gap-2">
                             <button type="button" @click="enrollMode = 'directory'"
                                 :class="enrollMode === 'directory' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'"
@@ -151,9 +142,17 @@
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        @if($canManageStudents)
+                            <button type="button" @click="enrollOpen = !enrollOpen"
+                                :class="enrollOpen ? 'bg-slate-800 text-white' : 'bg-teal-800 text-white hover:bg-teal-700'"
+                                class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-2xs transition">
+                                <span x-text="enrollOpen ? 'Tutup Form' : '+ Tambah Mahasiswa'"></span>
+                            </button>
+                        @endif
+
                         {{-- Realtime Search Input untuk Mahasiswa --}}
-                        <div class="relative w-48 sm:w-64">
+                        <div class="relative w-44 sm:w-56">
                             <input type="text" x-model="studentSearch" placeholder="Cari Nama / NIM..."
                                 class="w-full rounded-xl border-slate-300 pl-8 pr-3 py-1.5 text-xs focus:border-teal-700 focus:ring-teal-700 bg-white">
                             <svg class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -162,12 +161,12 @@
                         </div>
 
                         @if(auth()->user()->isStaff())
-                            <span class="text-slate-300">·</span>
-                            <a href="{{ route('courses.grades.export', $course) }}" class="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition">
+                            <span class="text-slate-300 hidden sm:inline">·</span>
+                            <a href="{{ route('courses.grades.export', $course) }}" class="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950 px-2 py-1 transition">
                                 <span>Ekspor</span>
                             </a>
-                            <span class="text-slate-300">·</span>
-                            <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-bold text-teal-800 hover:text-teal-950 transition">
+                            <span class="text-slate-300 hidden sm:inline">·</span>
+                            <a href="{{ route('courses.grades.print', $course) }}" target="_blank" class="text-xs font-bold text-teal-800 hover:text-teal-950 px-2 py-1 transition">
                                 Cetak Nilai &rarr;
                             </a>
                         @endif

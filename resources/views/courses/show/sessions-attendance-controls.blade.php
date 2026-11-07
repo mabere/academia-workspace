@@ -139,27 +139,15 @@
                         </div>
                     </div>
                 @else
-                    {{-- B. KONTROL BUKA PRESENSI & CATAT JURNAL MANUAL (TERTUTUP DEFAULT) --}}
-                    <div class="rounded-3xl border border-teal-200 bg-white p-5 shadow-xs" x-data="{ sessionFormMode: null }">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <h3 class="text-sm font-extrabold text-slate-900">Jurnal Pertemuan &amp; Presensi Kelas</h3>
-
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button type="button" @click="sessionFormMode = (sessionFormMode === 'pin' ? null : 'pin')"
-                                    :class="sessionFormMode === 'pin' ? 'bg-teal-900 text-white' : 'bg-teal-800 text-white hover:bg-teal-700'"
-                                    class="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold shadow-2xs transition">
-                                    <span x-text="sessionFormMode === 'pin' ? 'Tutup Presensi Cepat' : '+ Buka Presensi PIN'"></span>
-                                </button>
-                                <button type="button" @click="sessionFormMode = (sessionFormMode === 'manual' ? null : 'manual')"
-                                    :class="sessionFormMode === 'manual' ? 'bg-slate-800 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
-                                    class="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold shadow-2xs transition">
-                                    <span x-text="sessionFormMode === 'manual' ? 'Tutup Form Manual' : '+ Catat Jurnal Manual'"></span>
-                                </button>
-                            </div>
+                    {{-- B. KONTROL BUKA PRESENSI & CATAT JURNAL MANUAL (Hanya muncul saat tombol di toolbar diklik) --}}
+                    <div x-show="sessionFormMode !== null" x-cloak class="rounded-3xl border border-teal-200 bg-white p-6 shadow-xs">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <h3 class="text-sm font-extrabold text-slate-900" x-text="sessionFormMode === 'pin' ? 'Buka Presensi Kelas dengan Kode PIN' : 'Pencatatan Jurnal Perkuliahan Manual'"></h3>
+                            <button type="button" @click="sessionFormMode = null" class="text-xs font-bold text-slate-400 hover:text-slate-700">&times; Tutup</button>
                         </div>
 
                         {{-- Form 1: Buka Presensi Cepat (PIN 4-Digit) --}}
-                        <form x-show="sessionFormMode === 'pin'" x-cloak method="post" action="{{ route('courses.sessions.quick-open', $course) }}" class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                        <form x-show="sessionFormMode === 'pin'" method="post" action="{{ route('courses.sessions.quick-open', $course) }}" class="mt-4 space-y-3">
                             @csrf
                             <div class="grid gap-3 sm:grid-cols-4">
                                 <div>
@@ -192,7 +180,7 @@
                         </form>
 
                         {{-- Form 2: Pencatatan Jurnal Manual --}}
-                        <form x-show="sessionFormMode === 'manual'" x-cloak method="post" action="{{ route('courses.sessions.store', $course) }}" class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                        <form x-show="sessionFormMode === 'manual'" method="post" action="{{ route('courses.sessions.store', $course) }}" class="mt-4 space-y-3">
                             @csrf
                             <div class="grid gap-3 sm:grid-cols-3">
                                 <div>

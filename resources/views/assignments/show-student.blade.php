@@ -63,102 +63,6 @@
 
     @php
         $mySubmission = $mySubmission ?? $assignment->submissions->first();
-    @endphp
-
-    {{-- Kartu Status Submisi & Nilai Mahasiswa --}}
-    @if ($mySubmission)
-        <div
-            class="mt-6 rounded-3xl border {{ $mySubmission->status === 'graded' ? 'border-emerald-300 bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-white' : ($mySubmission->status === 'submitted' ? 'border-teal-300 bg-gradient-to-r from-teal-50/70 via-slate-50/40 to-white' : 'border-amber-300 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white') }} p-6 sm:p-7 shadow-xs">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3.5">
-                    <div
-                        class="h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-xl shadow-xs shrink-0
-                        {{ $mySubmission->status === 'graded' ? 'bg-emerald-600 text-white' : ($mySubmission->status === 'submitted' ? 'bg-teal-700 text-white' : 'bg-amber-600 text-white') }}">
-                        @if ($mySubmission->status === 'graded')
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                    d="M5 13l4 4L19 7" />
-                            </svg>
-                        @elseif($mySubmission->status === 'submitted')
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        @else
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                        @endif
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span
-                                class="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider border
-                                {{ $mySubmission->status === 'graded' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : ($mySubmission->status === 'submitted' ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-amber-100 text-amber-800 border-amber-300') }}">
-                                <span
-                                    class="h-1.5 w-1.5 rounded-full {{ $mySubmission->status === 'graded' ? 'bg-emerald-600' : ($mySubmission->status === 'submitted' ? 'bg-teal-600 animate-pulse' : 'bg-amber-600') }}"></span>
-                                {{ $mySubmission->status === 'graded' ? 'Sudah Dinilai Dosen' : ($mySubmission->status === 'submitted' ? 'Sudah Dikumpulkan' : 'Draf Tersimpan') }}
-                            </span>
-                            @if ($mySubmission->submitted_at)
-                                <span class="text-xs text-slate-500 font-medium">
-                                    Waktu Kumpul:
-                                    {{ $mySubmission->submitted_at->timezone('Asia/Jakarta')->format('d M Y, H:i') }}
-                                    WIB
-                                </span>
-                            @endif
-                        </div>
-                        <h2 class="mt-1 text-base sm:text-lg font-extrabold text-slate-900">
-                            @if ($mySubmission->status === 'graded')
-                                Evaluasi &amp; Nilai Hasil Tugas
-                            @elseif($mySubmission->status === 'submitted')
-                                Jawaban Tugas Berhasil Dikumpulkan
-                            @else
-                                Draf Jawaban Tersimpan
-                            @endif
-                        </h2>
-                        @if ($mySubmission->status === 'graded' && $mySubmission->graded_at)
-                            <p class="text-xs text-slate-600 mt-0.5">
-                                Dinilai oleh <strong
-                                    class="text-slate-800">{{ $mySubmission->grader?->name ?? ($assignment->course?->lecturer?->name ?? 'Dosen Pengampu') }}</strong>
-                                pada {{ $mySubmission->graded_at->timezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB
-                            </p>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- Kotak Nilai Utama --}}
-                @if ($mySubmission->score !== null)
-                    <div
-                        class="flex items-center gap-4 rounded-2xl bg-white border border-emerald-300/80 px-5 py-3 shadow-2xs">
-                        <div class="text-right">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Nilai
-                                Akhir</span>
-                            <div class="flex items-baseline gap-1">
-                                <span
-                                    class="text-3xl font-black text-teal-900">{{ number_format($mySubmission->score, 1) }}</span>
-                                <span class="text-xs font-semibold text-slate-400">/ 100</span>
-                            </div>
-                        </div>
-                        <div class="h-10 w-px bg-slate-200"></div>
-                        <div class="text-center">
-                            <span
-                                class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mutu</span>
-                            <span
-                                class="text-2xl font-black text-emerald-700">{{ $mySubmission->letterGrade() }}</span>
-                        </div>
-                    </div>
-                @else
-                    <div
-                        class="text-xs font-semibold text-slate-600 bg-white/90 rounded-xl px-4 py-2.5 border border-slate-200 shadow-2xs">
-                        {{ $mySubmission->status === 'submitted' ? '⏳ Menunggu evaluasi & nilai dari dosen pengampu.' : '✍️ Draf belum difinalisasi dan belum dikirim ke dosen.' }}
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
-
-    @php
         $latestRevision = $mySubmission?->revisions->sortByDesc('revision_number')->first();
         $configuredSections = $assignment->config_json['sections'] ?? [];
         $savedDraftSections = old(
@@ -192,11 +96,11 @@
         $hasErrors = (bool) (isset($errors) && $errors->any());
     @endphp
 
-    <section class="mt-8 grid gap-6 lg:grid-cols-2">
+    <section class="mt-6 grid gap-6 lg:grid-cols-2 items-start">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm" x-data="{
             text: @js($initialBodyText),
             sectionResponses: @js((object) $initialSectionResponses),
-            isRevising: @js(!$hasMaxGrade && ($hasErrors || !$isSubmitted || $mySubmission?->status === 'draft')),
+            isRevising: @js(!$hasMaxGrade && (($hasErrors && $isGraded) || !$isSubmitted || $mySubmission?->status === 'draft')),
             submitLabel: @js($hasMaxGrade ? 'Tugas Selesai' : ($isSubmitted ? 'Kirim Revisi →' : 'Kirim Tugas →')),
             extracting: false,
             submitting: false,
@@ -308,16 +212,16 @@
                 @if ($isSubmitted)
                     {{-- Kartu Ajukan / Mulai Revisi (Kondisi Awal sebelum Form Dibuka) --}}
                     <div x-show="!isRevising"
-                        class="mt-4 rounded-2xl border border-teal-200 bg-teal-50/50 p-5 sm:p-6 space-y-4">
+                        class="mt-4 rounded-2xl border {{ $isGraded ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-slate-50/60' }} p-5 sm:p-6 space-y-4">
                         <div class="flex items-start gap-3.5">
                             <div
-                                class="h-10 w-10 shrink-0 rounded-xl bg-teal-700 text-white flex items-center justify-center font-bold text-lg shadow-xs">
+                                class="h-10 w-10 shrink-0 rounded-xl {{ $isGraded ? 'bg-teal-700 text-white' : 'bg-slate-200 text-slate-600' }} flex items-center justify-center font-bold text-lg shadow-xs">
                                 ✍️
                             </div>
                             <div class="space-y-1">
                                 <span
-                                    class="inline-flex items-center gap-1.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">
-                                    Kesempatan Revisi Terbuka
+                                    class="inline-flex items-center gap-1.5 rounded-full {{ $isGraded ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-amber-100 text-amber-800 border-amber-300' }} border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">
+                                    {{ $isGraded ? 'Kesempatan Revisi Terbuka' : 'Menunggu Pemeriksaan Dosen' }}
                                 </span>
                                 <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
                                     {{ $isGraded ? 'Ingin Meningkatkan Nilai ke Grade A?' : 'Perlu Memperbarui Jawaban Anda?' }}
@@ -325,21 +229,25 @@
                                 <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
                                     {{ $isGraded
                                         ? 'Catatan evaluasi dan masukan dari dosen pengampu sudah tersedia pada panel riwayat. Selama tenggat belum berakhir, Anda dapat menyunting jawaban untuk meraih capaian maksimal.'
-                                        : 'Jawaban Anda telah tersimpan dan siap diperiksa. Namun, Anda masih dapat menyunting dan mengirim pembaruan sebelum batas tenggat berakhir.' }}
+                                        : 'Jawaban Anda telah terkirim dan sedang menunggu pemeriksaan dosen. Pengajuan revisi baru dapat dilakukan setelah dosen memeriksa dan memberikan evaluasi.' }}
                                 </p>
                             </div>
                         </div>
 
                         <div
-                            class="rounded-xl border border-teal-200/80 bg-white p-3 text-xs text-slate-600 flex items-center gap-2">
+                            class="rounded-xl border {{ $isGraded ? 'border-teal-200/80 bg-white' : 'border-slate-200 bg-white/80' }} p-3 text-xs text-slate-600 flex items-center gap-2">
                             <span class="text-teal-700 font-bold">ℹ️</span>
-                            <span>Saat Anda mengklik tombol di bawah, naskah jawaban sebelumnya otomatis dimuat ke
-                                formulir agar Anda tidak perlu mengetik dari awal.</span>
+                            <span>
+                                {{ $isGraded
+                                    ? 'Saat Anda mengklik tombol di bawah, naskah jawaban sebelumnya otomatis dimuat ke formulir agar Anda tidak perlu mengetik dari awal.'
+                                    : 'Tombol Ajukan Revisi akan aktif secara otomatis setelah dosen selesai memeriksa naskah Anda.' }}
+                            </span>
                         </div>
 
                         <div class="pt-1">
-                            <button type="button" @click="isRevising = true"
-                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 shadow transition">
+                            <button type="button"
+                                @if ($isGraded) @click="isRevising = true" @else disabled @endif
+                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-bold transition {{ $isGraded ? 'bg-slate-900 text-white hover:bg-slate-800 shadow cursor-pointer' : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed' }}">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -481,7 +389,7 @@
                                         @endif
                                     </div>
                                     @if (!empty($section['cpmk_outcomes']))
-                                        <p class="mt-1 text-[11px] text-indigo-800">CPMK:
+                                        <p class="mt-1 text-[11px] font-semibold text-teal-800">CPMK:
                                             {{ implode(' · ', $section['cpmk_outcomes']) }}</p>
                                     @endif
                                     @if ($section['prompt'])

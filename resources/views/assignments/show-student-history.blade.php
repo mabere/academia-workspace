@@ -176,4 +176,68 @@
                     Belum ada jawaban tugas yang dikumpulkan. Kirim tulisan pertama Anda melalui formulir di samping.
                 </div>
             @endforelse
+
+            {{-- Kartu Ringkas Status Submisi & Nilai Mahasiswa --}}
+            @if ($mySubmission)
+                <div class="mt-4 rounded-2xl border {{ $mySubmission->status === 'graded' ? 'border-emerald-300 bg-emerald-50/50' : ($mySubmission->status === 'submitted' ? 'border-teal-200 bg-teal-50/40' : 'border-amber-200 bg-amber-50/40') }} px-4 py-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs shrink-0
+                            {{ $mySubmission->status === 'graded' ? 'bg-emerald-600 text-white' : ($mySubmission->status === 'submitted' ? 'bg-teal-700 text-white' : 'bg-amber-600 text-white') }}">
+                            @if ($mySubmission->status === 'graded')
+                                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                </svg>
+                            @elseif($mySubmission->status === 'submitted')
+                                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            @else
+                                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            @endif
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs sm:text-sm font-extrabold text-slate-900">
+                                    @if ($mySubmission->status === 'graded')
+                                        Sudah Dinilai Dosen
+                                    @elseif($mySubmission->status === 'submitted')
+                                        ⏳ Menunggu Penilaian Dosen
+                                    @else
+                                        ✍️ Draf Belum Dikirim
+                                    @endif
+                                </span>
+                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border
+                                    {{ $mySubmission->status === 'graded' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : ($mySubmission->status === 'submitted' ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-amber-100 text-amber-800 border-amber-300') }}">
+                                    {{ $mySubmission->status === 'graded' ? 'Selesai' : ($mySubmission->status === 'submitted' ? 'Terkirim' : 'Draf') }}
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5">
+                                @if ($mySubmission->status === 'graded' && $mySubmission->graded_at)
+                                    Dinilai {{ $mySubmission->graded_at->timezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB
+                                @elseif ($mySubmission->submitted_at)
+                                    Dikumpulkan {{ $mySubmission->submitted_at->timezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB
+                                @else
+                                    Simpan atau kirim tugas melalui formulir
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+
+                    @if ($mySubmission->score !== null)
+                        <div class="flex items-center gap-3 rounded-xl bg-white border border-emerald-200 px-3.5 py-1.5 shadow-2xs shrink-0">
+                            <div class="text-right">
+                                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Nilai</span>
+                                <span class="text-lg font-black text-teal-900 leading-none">{{ number_format($mySubmission->score, 1) }}</span>
+                            </div>
+                            <div class="h-6 w-px bg-slate-200"></div>
+                            <div class="text-center">
+                                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Mutu</span>
+                                <span class="text-base font-black text-emerald-700 leading-none">{{ $mySubmission->letterGrade() }}</span>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>

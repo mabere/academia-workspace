@@ -135,11 +135,10 @@
                             </a>
                         @endif
                     </nav>
-                    <div
-                        class="mt-auto flex items-center gap-3 border-t border-slate-100 px-3 pt-5 text-xs leading-5 text-slate-500">
-                        <img src="{{ asset('apple-touch-icon.png') }}?v=2" width="32" height="32" alt=""
-                            class="h-8 w-8 shrink-0">
-                        <span data-sidebar-label class="font-medium">ELT Academic Hub<br><span class="text-slate-400">Ruang kerja Tri Dharma</span></span>
+                    <div data-sidebar-label
+                        class="mt-auto border-t border-slate-100 px-3 pt-4 text-[11px] leading-relaxed text-slate-400">
+                        <p class="font-semibold text-slate-600">ELT Academic Hub</p>
+                        <p class="text-[10px] text-slate-400">Ruang kerja Tri Dharma</p>
                     </div>
                 </div>
             </aside>

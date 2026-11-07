@@ -26,10 +26,10 @@
         {{-- Brand Accent Top Strip --}}
         <div class="h-2 w-full bg-gradient-to-r from-teal-800 via-teal-600 to-emerald-500"></div>
 
-        <div class="p-6 sm:p-8 space-y-6">
-            {{-- Baris Atas: Metadata Pills & Tombol Tindakan --}}
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="space-y-3 max-w-3xl">
+        <div class="p-6 sm:p-8">
+            <div class="grid gap-6 lg:grid-cols-12 items-start">
+                {{-- Kolom Kiri: Metadata, Judul, Info Pengampu, & CPMK (Span 6) --}}
+                <div class="lg:col-span-6 space-y-4">
                     {{-- Badges Strip --}}
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="inline-flex items-center gap-1.5 rounded-xl bg-teal-50 px-3 py-1 font-mono text-xs font-extrabold uppercase tracking-wider text-teal-900 border border-teal-200/80 shadow-2xs">
@@ -59,242 +59,131 @@
                         {{ $course->name }}
                     </h1>
 
-                    {{-- Detail Pengampu, Jadwal, & Fakultas --}}
-                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 pt-1 text-xs sm:text-sm text-slate-600">
+                    {{-- Detail Pengampu, Jadwal, & Program Studi --}}
+                    <div class="grid gap-2.5 sm:grid-cols-2 pt-1 text-xs text-slate-600">
                         {{-- Dosen Pengampu --}}
-                        <div class="flex items-center gap-2.5">
+                        <div class="flex items-center gap-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 p-2.5">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-900 font-bold text-xs text-white shadow-2xs">
                                 {{ strtoupper(substr($course->lecturer->name, 0, 2)) }}
                             </div>
                             <div class="min-w-0">
-                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Dosen Pengampu</span>
+                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Dosen Pengampu</span>
                                 <span class="block font-bold text-slate-900 truncate" title="{{ $course->lecturer->name }}">{{ $course->lecturer->name }}</span>
                             </div>
                         </div>
 
                         {{-- Jadwal & Ruang Kuliah --}}
-                        <div class="flex items-center gap-2.5">
+                        <div class="flex items-center gap-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 p-2.5">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800 border border-teal-100">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
                             <div class="min-w-0">
-                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Jadwal & Ruang</span>
+                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Jadwal & Ruang</span>
                                 <span class="block font-bold text-slate-800 truncate" title="{{ $course->scheduleLabel() }}">{{ $course->scheduleLabel() }}</span>
                             </div>
                         </div>
 
                         {{-- Program Studi & Fakultas --}}
-                        <div class="flex items-center gap-2.5 sm:col-span-2 lg:col-span-1">
+                        <div class="flex items-center gap-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 p-2.5 sm:col-span-2">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                             </div>
                             <div class="min-w-0">
-                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Program Studi</span>
+                                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Program Studi</span>
                                 <span class="block font-bold text-slate-800 truncate" title="{{ $course->studyProgram->name }} ({{ $course->studyProgram->faculty->name ?? 'Fakultas' }})">
-                                    {{ $course->studyProgram->name }}
+                                    {{ $course->studyProgram->name }} &middot; {{ $course->studyProgram->faculty->name ?? 'Fakultas' }}
                                 </span>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- Action Cluster Kanan --}}
-                <div class="flex flex-wrap items-center gap-2 pt-1">
-                    @if(auth()->user()->isStaff())
-                        <a href="{{ route('courses.sessions.print', $course) }}" target="_blank"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-teal-900 transition">
-                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            <span>Cetak Jurnal</span>
-                        </a>
-                    @endif
-
-                    @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)))
-                        <a href="{{ route('courses.edit', $course) }}"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-teal-900 transition">
-                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            <span>Edit MK</span>
-                        </a>
-                    @endif
-
-                    <a href="{{ route('courses.index') }}"
-                        class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
-                        <span>&larr; Kembali</span>
-                    </a>
-                </div>
-            </div>
-
-            {{-- 4 Kartu Metrik Ringkas Cockpit (Executive Metrics Strip) --}}
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 pt-2 border-t border-slate-100">
-                {{-- KPI 1: Progress Sesi 16 Pertemuan --}}
-                <div class="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/60 to-white p-3.5 shadow-2xs">
-                    <div class="flex items-center justify-between text-slate-600 mb-1">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-teal-800">Linimasa Sesi</span>
-                        <svg class="h-4 w-4 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-xl sm:text-2xl font-black text-slate-900">{{ $sessions->count() }}</span>
-                        <span class="text-xs font-bold text-slate-600">/ 16 Pertemuan</span>
-                    </div>
-                    <div class="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                        <div class="h-full rounded-full bg-teal-700 transition-all duration-500" style="width: {{ min(100, round(($sessions->count() / 16) * 100)) }}%"></div>
-                    </div>
-                </div>
-
-                {{-- KPI 2: Bahan Ajar Terbit --}}
-                <div class="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/50 to-white p-3.5 shadow-2xs">
-                    <div class="flex items-center justify-between text-slate-600 mb-1">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-blue-900">Bahan Ajar</span>
-                        <svg class="h-4 w-4 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                    </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-xl sm:text-2xl font-black text-slate-900">{{ $materials->count() }}</span>
-                        <span class="text-xs font-bold text-slate-600">Modul</span>
-                    </div>
-                </div>
-
-                {{-- KPI 3: Penugasan & Asesmen --}}
-                <div class="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white p-3.5 shadow-2xs">
-                    <div class="flex items-center justify-between text-slate-600 mb-1">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-900">Penugasan</span>
-                        <svg class="h-4 w-4 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-xl sm:text-2xl font-black text-slate-900">{{ $assignments->count() }}</span>
-                        <span class="text-xs font-bold text-slate-600">Tugas</span>
-                    </div>
-                </div>
-
-                {{-- KPI 4: Total Peserta Kelas --}}
-                <div class="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white p-3.5 shadow-2xs">
-                    <div class="flex items-center justify-between text-slate-600 mb-1">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-900">Peserta Kelas</span>
-                        <svg class="h-4 w-4 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                    </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-xl sm:text-2xl font-black text-slate-900">{{ $students->count() }}</span>
-                        <span class="text-xs font-bold text-slate-600">Mahasiswa</span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Kompartemen Modular CPMK & Deskripsi (Collapsible / Compact) --}}
-            @if($course->description || $course->syllabus)
-                @php
-                    $cpmkItems = $course->cpmkList();
-                @endphp
-                <div class="border-t border-slate-100 pt-4" x-data="{ expanded: false }">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="flex h-5 w-5 items-center justify-center rounded-md bg-teal-800 text-white shadow-2xs">
-                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </span>
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-800">
-                                Deskripsi & Capaian Pembelajaran (CPMK)
-                            </span>
-                        </div>
-                        <button type="button" @click="expanded = !expanded" class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-950 transition">
-                            <span x-text="expanded ? 'Sembunyikan Detail' : 'Buka Detail Lengkap'"></span>
-                            <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    {{-- Default Compact Preview (1 Baris Ringkas) --}}
-                    <div x-show="!expanded" class="rounded-2xl bg-slate-50/80 border border-slate-200/80 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <p class="text-slate-600 truncate max-w-2xl">
-                            <strong>Deskripsi:</strong> {{ Str::limit($course->description ?: 'Belum ada deskripsi singkat untuk mata kuliah ini.', 110) }}
-                        </p>
-                        <div class="flex items-center gap-2">
-                            @if(count($cpmkItems) > 0)
-                                <span class="rounded-full bg-teal-100 px-2.5 py-0.5 font-mono font-bold text-teal-900 text-[11px]">
-                                    {{ count($cpmkItems) }} Butir CPMK
-                                </span>
-                            @endif
-                            <button type="button" @click="expanded = true" class="text-xs font-bold text-teal-800 hover:underline">
-                                Baca Selengkapnya &rarr;
-                            </button>
-                        </div>
-                    </div>
-
-                    {{-- Expanded Two-Column Cards --}}
-                    <div x-show="expanded" x-cloak class="mt-3 grid gap-4 md:grid-cols-2 text-xs sm:text-sm">
-                        {{-- Kartu Deskripsi Mata Kuliah --}}
-                        @if($course->description)
-                            <div class="rounded-2xl bg-slate-50/90 border border-slate-200 p-5 shadow-2xs">
-                                <div class="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider mb-2.5">
-                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                    {{-- Kartu Capaian Pembelajaran (CPMK) --}}
+                    @php
+                        $cpmkItems = $course->cpmkList();
+                    @endphp
+                    @if(count($cpmkItems) > 0 || $course->syllabus)
+                        <div class="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 sm:p-5 shadow-2xs">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <div class="flex items-center gap-2 text-teal-950 font-bold text-xs uppercase tracking-wider">
+                                    <svg class="h-4 w-4 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <span>Deskripsi Mata Kuliah</span>
+                                    <span>Capaian Pembelajaran (CPMK)</span>
                                 </div>
-                                <p class="leading-relaxed text-slate-700 whitespace-pre-line text-xs sm:text-sm">
-                                    {{ $course->description }}
-                                </p>
-                            </div>
-                        @endif
-
-                        {{-- Kartu Capaian Pembelajaran (CPMK) Berpenomoran --}}
-                        @if($course->syllabus)
-                            <div class="rounded-2xl bg-teal-50/50 border border-teal-200/90 p-5 shadow-2xs">
-                                <div class="flex items-center justify-between gap-2 mb-2.5">
-                                    <div class="flex items-center gap-2 text-teal-950 font-bold text-xs uppercase tracking-wider">
-                                        <svg class="h-4 w-4 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span>Capaian Pembelajaran (CPMK)</span>
-                                    </div>
-                                    @if(count($cpmkItems) > 0)
-                                        <span class="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-900 border border-teal-200">
-                                            {{ count($cpmkItems) }} Butir Capaian
-                                        </span>
-                                    @endif
-                                </div>
-
-                                @if(count($cpmkItems) > 1)
-                                    <ol class="space-y-2.5">
-                                        @foreach($cpmkItems as $idx => $item)
-                                            <li class="flex items-start gap-2.5 text-slate-800 leading-relaxed text-xs sm:text-sm">
-                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[11px] font-black text-white mt-0.5 shadow-2xs">
-                                                    {{ $idx + 1 }}
-                                                </span>
-                                                <span class="flex-1">{{ preg_replace('/^(?:(?:\d+|cpmk\s*\d*)[.:\)]\s*|[-*•]\s*)/iu', '', $item) }}</span>
-                                            </li>
-                                        @endforeach
-                                    </ol>
-                                @elseif(count($cpmkItems) === 1)
-                                    <div class="flex items-start gap-2.5 text-slate-800 leading-relaxed text-xs sm:text-sm">
-                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[11px] font-black text-white mt-0.5 shadow-2xs">
-                                            1
-                                        </span>
-                                        <span class="flex-1">{{ preg_replace('/^(?:(?:\d+|cpmk\s*\d*)[.:\)]\s*|[-*•]\s*)/iu', '', $cpmkItems[0]) }}</span>
-                                    </div>
-                                @else
-                                    <p class="leading-relaxed text-slate-700 whitespace-pre-line text-xs sm:text-sm">{{ $course->syllabus }}</p>
+                                @if(count($cpmkItems) > 0)
+                                    <span class="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-900 border border-teal-200">
+                                        {{ count($cpmkItems) }} Capaian
+                                    </span>
                                 @endif
                             </div>
-                        @endif
-                    </div>
+
+                            @if(count($cpmkItems) > 0)
+                                <ol class="space-y-2 text-xs text-slate-700">
+                                    @foreach($cpmkItems as $idx => $item)
+                                        <li class="flex items-start gap-2.5 leading-relaxed">
+                                            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-800 text-[10px] font-black text-white mt-0.5 shadow-2xs">
+                                                {{ $idx + 1 }}
+                                            </span>
+                                            <span class="flex-1">{{ preg_replace('/^(?:(?:\d+|cpmk\s*\d*)[.:\)]\s*|[-*•]\s*)/iu', '', $item) }}</span>
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            @else
+                                <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{{ $course->syllabus }}</p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
-            @endif
+
+                {{-- Kolom Kanan: Actions & Deskripsi Mata Kuliah (Span 6) --}}
+                <div class="lg:col-span-6 space-y-4">
+                    {{-- Action Cluster Kanan --}}
+                    @if(auth()->user()->isStaff())
+                        <div class="flex flex-wrap items-center justify-start lg:justify-end gap-2">
+                            <a href="{{ route('courses.sessions.print', $course) }}" target="_blank"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-teal-900 transition">
+                                <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                <span>Cetak Jurnal</span>
+                            </a>
+
+                            @if(auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true))
+                                <a href="{{ route('courses.edit', $course) }}"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-teal-900 transition">
+                                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    <span>Edit MK</span>
+                                </a>
+                            @endif
+                        </div>
+                    @endif
+
+                    {{-- Deskripsi Mata Kuliah Card --}}
+                    @if($course->description)
+                        <div class="rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4 sm:p-5 shadow-2xs">
+                            <div class="flex items-center gap-2 mb-2.5 text-slate-900 font-bold text-xs uppercase tracking-wider">
+                                <svg class="h-4 w-4 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                                <span>Deskripsi Mata Kuliah</span>
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                                {{ $course->description }}
+                            </div>
+                        </div>
+                    @else
+                        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 p-5 text-center text-xs text-slate-400">
+                            Belum ada deskripsi mata kuliah.
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 

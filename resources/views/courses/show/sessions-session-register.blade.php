@@ -1,5 +1,5 @@
             {{-- 3. REKAPITULASI TABEL 16 PERTEMUAN (DENGAN SLIDE-OVER ATTENDEE MODAL) --}}
-            <div class="rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs" x-data="{ activeAttendeeModal: null }">
+            <div class="rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-6 py-4">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -10,22 +10,33 @@
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
-                        @if(auth()->user()->isStaff())
+                    <div class="flex flex-wrap items-center gap-2">
+                        @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)))
+                            @if(!$activeSession)
+                                <button type="button" @click="sessionFormMode = (sessionFormMode === 'pin' ? null : 'pin')"
+                                    :class="sessionFormMode === 'pin' ? 'bg-teal-900 text-white' : 'bg-teal-800 text-white hover:bg-teal-700'"
+                                    class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-2xs transition">
+                                    <span x-text="sessionFormMode === 'pin' ? 'Tutup PIN' : '+ Buka Presensi PIN'"></span>
+                                </button>
+                                <button type="button" @click="sessionFormMode = (sessionFormMode === 'manual' ? null : 'manual')"
+                                    :class="sessionFormMode === 'manual' ? 'bg-slate-800 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+                                    class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-2xs transition">
+                                    <span x-text="sessionFormMode === 'manual' ? 'Tutup Form' : '+ Catat Jurnal Manual'"></span>
+                                </button>
+                            @endif
                             <form method="post" action="{{ route('courses.sessions.sync-attendance', $course) }}" class="inline">
                                 @csrf
-                                <button type="submit" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-teal-900 transition" title="Sinkronkan persentase presensi seluruh mahasiswa">
-                                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <button type="submit" class="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-teal-900 px-2 py-1 transition" title="Sinkronkan persentase presensi seluruh mahasiswa">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
-                                    <span>Sinkronkan Presensi</span>
+                                    <span>Sinkronkan</span>
                                 </button>
                             </form>
-                            <span class="text-slate-300">·</span>
                         @endif
                         <a href="{{ route('courses.sessions.print', $course) }}" target="_blank"
-                            class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-950 transition">
-                            <span>Cetak Laporan Format A4 &rarr;</span>
+                            class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-950 px-2 py-1 transition">
+                            <span>Cetak Format A4 &rarr;</span>
                         </a>
                     </div>
                 </div>
@@ -158,71 +169,73 @@
                                             </td>
                                         @endif
                                     </tr>
-
-                                    {{-- Slide-over / Modal Detail Presensi Sesi --}}
-                                    @if(auth()->user()->isStaff())
-                                        <div x-show="activeAttendeeModal === {{ $session->id }}" x-cloak
-                                            class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                                            <div @click.away="activeAttendeeModal = null" class="w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-                                                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
-                                                    <div>
-                                                        <h3 class="font-extrabold text-slate-900 text-sm">Daftar Kehadiran Pertemuan Ke-{{ $session->session_number }}</h3>
-                                                        <p class="text-xs text-slate-500">{{ $session->topic }} · {{ $session->date?->format('d/m/Y') }}</p>
-                                                    </div>
-                                                    <button type="button" @click="activeAttendeeModal = null" class="text-slate-400 hover:text-slate-700 font-bold text-xl">&times;</button>
-                                                </div>
-
-                                                <div class="p-6 max-h-96 overflow-y-auto divide-y divide-slate-100 text-xs">
-                                                    @forelse($students as $cs)
-                                                        @php
-                                                            $studentAtt = $session->studentAttendance($cs->student_id);
-                                                        @endphp
-                                                        <div class="py-3 flex items-center justify-between gap-3">
-                                                            <div>
-                                                                <div class="font-bold text-slate-800">{{ $cs->student->name }}</div>
-                                                                <div class="text-[11px] text-slate-500 font-mono">{{ $cs->nim ?: $cs->student->nim ?: 'NIM -' }} · {{ $cs->student->studyProgram->name ?? 'Prodi' }}</div>
-                                                            </div>
-                                                            <div class="flex items-center gap-2">
-                                                                @if($studentAtt)
-                                                                    <span class="rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-[10px] font-bold">
-                                                                        Hadir ({{ $studentAtt->checked_in_at?->format('H:i') ?? '-' }})
-                                                                    </span>
-                                                                    <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
-                                                                        @csrf
-                                                                        <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
-                                                                        <input type="hidden" name="status" value="absent">
-                                                                        <button type="submit" class="text-[11px] text-rose-600 font-bold hover:underline">Ubah ke Alpa</button>
-                                                                    </form>
-                                                                @else
-                                                                    <span class="rounded-full bg-slate-100 text-slate-400 px-3 py-0.5 text-[10px]">
-                                                                        Tidak Hadir
-                                                                    </span>
-                                                                    <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
-                                                                        @csrf
-                                                                        <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
-                                                                        <input type="hidden" name="status" value="present">
-                                                                        <button type="submit" class="text-[11px] text-teal-800 font-bold hover:underline">Tandai Hadir</button>
-                                                                    </form>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    @empty
-                                                        <p class="text-center text-slate-400 py-4">Belum ada mahasiswa terdaftar di kelas ini.</p>
-                                                    @endforelse
-                                                </div>
-
-                                                <div class="border-t border-slate-100 bg-slate-50/80 px-6 py-3.5 flex justify-end">
-                                                    <button type="button" @click="activeAttendeeModal = null" class="rounded-xl bg-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300 transition">
-                                                        Tutup
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+
+                    {{-- Modals Detail Presensi Sesi (di luar tabel) --}}
+                    @if(auth()->user()->isStaff())
+                        @foreach($sessions as $session)
+                            <div x-show="activeAttendeeModal === {{ $session->id }}" x-cloak
+                                class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                                <div @click.away="activeAttendeeModal = null" class="w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+                                    <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+                                        <div>
+                                            <h3 class="font-extrabold text-slate-900 text-sm">Daftar Kehadiran Pertemuan Ke-{{ $session->session_number }}</h3>
+                                            <p class="text-xs text-slate-500">{{ $session->topic }} · {{ $session->date?->format('d/m/Y') }}</p>
+                                        </div>
+                                        <button type="button" @click="activeAttendeeModal = null" class="text-slate-400 hover:text-slate-700 font-bold text-xl">&times;</button>
+                                    </div>
+
+                                    <div class="p-6 max-h-96 overflow-y-auto divide-y divide-slate-100 text-xs">
+                                        @forelse($students as $cs)
+                                            @php
+                                                $studentAtt = $session->studentAttendance($cs->student_id);
+                                            @endphp
+                                            <div class="py-3 flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div class="font-bold text-slate-800">{{ $cs->student->name }}</div>
+                                                    <div class="text-[11px] text-slate-500 font-mono">{{ $cs->nim ?: $cs->student->nim ?: 'NIM -' }} · {{ $cs->student->studyProgram->name ?? 'Prodi' }}</div>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    @if($studentAtt)
+                                                        <span class="rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-[10px] font-bold">
+                                                            Hadir ({{ $studentAtt->checked_in_at?->format('H:i') ?? '-' }})
+                                                        </span>
+                                                        <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
+                                                            @csrf
+                                                            <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
+                                                            <input type="hidden" name="status" value="absent">
+                                                            <button type="submit" class="text-[11px] text-rose-600 font-bold hover:underline">Ubah ke Alpa</button>
+                                                        </form>
+                                                    @else
+                                                        <span class="rounded-full bg-slate-100 text-slate-400 px-3 py-0.5 text-[10px]">
+                                                            Tidak Hadir
+                                                        </span>
+                                                        <form method="post" action="{{ route('courses.sessions.attendances.toggle', [$course, $session]) }}">
+                                                            @csrf
+                                                            <input type="hidden" name="student_id" value="{{ $cs->student_id }}">
+                                                            <input type="hidden" name="status" value="present">
+                                                            <button type="submit" class="text-[11px] text-teal-800 font-bold hover:underline">Tandai Hadir</button>
+                                                        </form>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <p class="text-center text-slate-400 py-4">Belum ada mahasiswa terdaftar di kelas ini.</p>
+                                        @endforelse
+                                    </div>
+
+                                    <div class="border-t border-slate-100 bg-slate-50/80 px-6 py-3.5 flex justify-end">
+                                        <button type="button" @click="activeAttendeeModal = null" class="rounded-xl bg-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300 transition">
+                                            Tutup
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
                 @endif
             </div>
         </div>

@@ -1,19 +1,11 @@
             {{-- Form Unggah Bahan Ajar Baru (Khusus Dosen / Staf) --}}
             @if(auth()->user()->isStaff() && (auth()->id() === $course->lecturer_id || in_array(auth()->user()->role, ['admin', 'superadmin'], true)))
-                <div class="rounded-3xl border border-teal-200 bg-white p-5 shadow-xs" x-data="{ mOpen: false, mType: 'document' }">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h3 class="text-sm font-extrabold text-slate-900">Bahan Ajar Perkuliahan</h3>
-
-                        <button type="button" @click="mOpen = !mOpen"
-                            class="inline-flex items-center gap-1.5 rounded-xl bg-teal-800 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs transition">
-                            <span x-text="mOpen ? 'Tutup Formulir' : '+ Unggah Bahan Ajar'"></span>
-                            <svg class="h-4 w-4 transition-transform duration-200" :class="mOpen ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
+                <div x-show="mOpen" x-cloak class="rounded-3xl border border-teal-200 bg-white p-6 shadow-xs">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-extrabold text-slate-900">Unggah Bahan Ajar Baru</h3>
+                        <button type="button" @click="mOpen = false" class="text-xs font-bold text-slate-400 hover:text-slate-700">&times; Tutup</button>
                     </div>
-
-                    <form x-show="mOpen" x-cloak method="post" action="{{ route('courses.materials.store', $course) }}" enctype="multipart/form-data" class="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                    <form method="post" action="{{ route('courses.materials.store', $course) }}" enctype="multipart/form-data" class="mt-4 space-y-4">
                         @csrf
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div class="sm:col-span-2">

@@ -125,9 +125,14 @@
             @endif
         </div>
 
-        <div class="w-full sm:w-64">
-            <input type="search" x-model="subSearch" aria-label="Cari mahasiswa"
-                class="w-full rounded-xl border-slate-300 py-1.5 px-3 text-xs focus:border-teal-700 focus:ring-teal-700">
+        <div class="relative w-full sm:w-64">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </span>
+            <input type="search" x-model="subSearch" placeholder="Cari nama atau NIM..." aria-label="Cari mahasiswa"
+                class="w-full rounded-xl border-slate-300 pl-8.5 pr-3 py-1.5 text-xs focus:border-teal-700 focus:ring-teal-700">
         </div>
     </div>
 
@@ -143,7 +148,7 @@
                         <th class="py-3 px-4 w-24 text-center">Nilai</th>
                         <th class="py-3 px-4 w-20 text-center">Mutu</th>
                         @if($canGrade && $course)
-                            <th class="py-3 px-4">Evaluasi Nilai &amp; Catatan</th>
+                            <th class="py-3 px-4 text-center">Evaluasi Nilai &amp; Catatan</th>
                         @endif
                     </tr>
                 </thead>
@@ -286,16 +291,16 @@
                             @if($canGrade && $course)
                                 <td class="py-3 px-4">
                                     @if(in_array($sub->status, ['submitted', 'graded'], true))
-                                        <form method="post" action="{{ route('courses.assignments.grade', [$course, $assignment, $sub]) }}" class="flex items-center gap-2">
+                                        <form method="post" action="{{ route('courses.assignments.grade', [$course, $assignment, $sub]) }}" class="flex items-center gap-1.5 justify-end">
                                             @csrf
-                                            <input type="number" step="0.1" min="0" max="100" name="score" required value="{{ $sub->score }}" aria-label="Nilai" class="w-20 rounded-xl border-slate-300 py-1.5 text-xs text-center font-bold">
-                                            <input type="text" name="feedback_notes" value="{{ $feedbackText }}" aria-label="Catatan evaluasi" class="w-48 sm:w-64 rounded-xl border-slate-300 py-1.5 text-xs">
-                                            <button type="submit" class="rounded-xl bg-teal-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700 transition shadow-2xs">
+                                            <input type="number" step="0.1" min="0" max="100" name="score" required value="{{ $sub->score }}" placeholder="Nilai" aria-label="Nilai" class="w-16 rounded-xl border-slate-300 py-1 px-2 text-xs text-center font-bold">
+                                            <input type="text" name="feedback_notes" value="{{ $feedbackText }}" placeholder="Catatan evaluasi..." aria-label="Catatan evaluasi" class="w-36 sm:w-48 rounded-xl border-slate-300 py-1 px-2.5 text-xs">
+                                            <button type="submit" class="rounded-xl bg-teal-800 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700 transition shadow-2xs shrink-0">
                                                 Simpan
                                             </button>
                                         </form>
                                     @else
-                                        <span class="text-xs text-slate-400">—</span>
+                                        <span class="text-xs text-slate-400 block text-center">—</span>
                                     @endif
                                 </td>
                             @endif
@@ -336,8 +341,8 @@
         </div>
     </div>
 
-    {{-- Panel Umpan Balik per Versi Naskah (Jika Proyek Mandiri atau AI Aktif) --}}
-    @if((!$course || $aiFeedbackAvailable) && $assignment->submissions->isNotEmpty())
+    {{-- Panel Umpan Balik per Versi Naskah (Khusus Proyek Mandiri) --}}
+    @if(!$course && $assignment->submissions->isNotEmpty())
         <details class="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
             <summary class="cursor-pointer text-sm font-bold text-slate-900">Umpan Balik Draf &amp; AI per Revisi</summary>
             <div class="mt-4 space-y-4">

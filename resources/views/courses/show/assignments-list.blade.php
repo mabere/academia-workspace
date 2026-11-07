@@ -59,8 +59,8 @@
                                 @endfor
                             </select>
 
-                            <input type="search" x-model="aSearch" aria-label="Cari tugas"
-                                class="w-full sm:w-52 rounded-xl border-slate-300 py-1.5 px-3 text-xs focus:border-teal-700 focus:ring-teal-700">
+                            <input type="search" x-model="aSearch" aria-label="Cari tugas" placeholder="Cari judul tugas..."
+                                class="w-full sm:w-52 rounded-xl border-slate-300 py-1.5 px-3 text-xs focus:border-teal-700 focus:ring-teal-700 bg-slate-50/50">
                         </div>
                     </div>
 
